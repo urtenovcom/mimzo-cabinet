@@ -50,6 +50,9 @@ export interface Device {
   display_name: string | null;
   os: string | null;
   client_app: string | null;
+  hwid: string | null;
+  ua_raw: string | null;
+  app_version: string | null;
   first_seen: string;
   last_seen: string;
 }

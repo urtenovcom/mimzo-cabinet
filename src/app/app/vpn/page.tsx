@@ -209,13 +209,32 @@ export default async function VpnPage() {
                   key={d.id}
                   className="py-3 flex items-center justify-between gap-3"
                 >
-                  <div className="min-w-0">
-                    <div className="font-medium truncate">
-                      {d.display_name ?? d.client_app ?? "Устройство"}
+                  <div className="min-w-0 flex-1 space-y-0.5">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-medium truncate">
+                        {d.display_name ?? d.client_app ?? "Устройство"}
+                      </span>
+                      {d.hwid && (
+                        <span className="font-mono text-[10px] uppercase tracking-wide text-muted-foreground bg-muted/60 px-1.5 py-0.5 rounded">
+                          {d.hwid.slice(-8)}
+                        </span>
+                      )}
                     </div>
                     <div className="text-xs text-muted-foreground">
-                      {[d.os, d.client_app].filter(Boolean).join(" · ") ||
-                        "Неизвестный клиент"}
+                      {[
+                        d.os,
+                        d.client_app && d.app_version
+                          ? `${d.client_app} ${d.app_version}`
+                          : d.client_app,
+                        new Date(d.last_seen).toLocaleString("ru-RU", {
+                          day: "2-digit",
+                          month: "2-digit",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        }),
+                      ]
+                        .filter(Boolean)
+                        .join(" · ") || "Неизвестный клиент"}
                     </div>
                   </div>
                   <RemoveDeviceButton deviceId={d.id} />

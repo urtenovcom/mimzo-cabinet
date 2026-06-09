@@ -88,10 +88,30 @@ export async function GET(request: NextRequest, { params }: Params) {
   }
 
   // 3) Device tracking — ONLY for real VPN clients.
-  // Browsers, curl, scanners get the bundle but don't burn a slot.
   const ua = request.headers.get("user-agent");
+
+  // Happ ships HWID under a few possible header names; pick the first non-empty
+  const hwid =
+    request.headers.get("x-hwid") ??
+    request.headers.get("hwid") ??
+    request.headers.get("x-device-id") ??
+    null;
+
+  // Debug — temporarily dump all headers in container logs so we can see
+  // what Happ actually sends and improve parsing. Remove once stable.
+  if (process.env.NODE_ENV !== "production" || process.env.LOG_SUB_HEADERS === "1") {
+    const summary: Record<string, string> = {};
+    request.headers.forEach((v, k) => {
+      summary[k] = v;
+    });
+    console.log("[sub] headers:", JSON.stringify(summary));
+  }
+
   if (isVpnClientUA(ua)) {
-    const hash = await deviceHash(ua);
+    // Use HWID for the device key when Happ provides one — more stable than UA.
+    const hash = hwid
+      ? hwid.slice(-16).toLowerCase().padStart(16, "0")
+      : await deviceHash(ua);
 
     const { data: existingDevice } = await supabase
       .from("devices")
@@ -103,7 +123,11 @@ export async function GET(request: NextRequest, { params }: Params) {
     if (existingDevice) {
       await supabase
         .from("devices")
-        .update({ last_seen: new Date().toISOString() })
+        .update({
+          last_seen: new Date().toISOString(),
+          hwid: hwid ?? undefined,
+          ua_raw: ua ?? undefined,
+        })
         .eq("id", existingDevice.id);
     } else {
       const { count } = await supabase
@@ -126,6 +150,9 @@ export async function GET(request: NextRequest, { params }: Params) {
         display_name: info.display_name,
         os: info.os,
         client_app: info.client_app,
+        app_version: info.app_version,
+        hwid,
+        ua_raw: ua,
       });
     }
   }

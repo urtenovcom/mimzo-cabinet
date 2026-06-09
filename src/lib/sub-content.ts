@@ -263,19 +263,71 @@ export async function deviceHash(ua: string | null): Promise<string> {
   return hex.slice(0, 16);
 }
 
-/**
- * Extract a human-readable device label from the User-Agent.
- * Best-effort — tuned for Happ on iOS / Android / Win / Mac.
- */
-export function parseDeviceInfo(ua: string | null): {
+// Minimal iPhone model dictionary — extend over time as we see real UAs
+const IPHONE_MODELS: Record<string, string> = {
+  "iPhone10,1": "iPhone 8",
+  "iPhone10,2": "iPhone 8 Plus",
+  "iPhone10,3": "iPhone X",
+  "iPhone10,4": "iPhone 8",
+  "iPhone10,5": "iPhone 8 Plus",
+  "iPhone10,6": "iPhone X",
+  "iPhone11,2": "iPhone XS",
+  "iPhone11,4": "iPhone XS Max",
+  "iPhone11,6": "iPhone XS Max",
+  "iPhone11,8": "iPhone XR",
+  "iPhone12,1": "iPhone 11",
+  "iPhone12,3": "iPhone 11 Pro",
+  "iPhone12,5": "iPhone 11 Pro Max",
+  "iPhone12,8": "iPhone SE 2",
+  "iPhone13,1": "iPhone 12 mini",
+  "iPhone13,2": "iPhone 12",
+  "iPhone13,3": "iPhone 12 Pro",
+  "iPhone13,4": "iPhone 12 Pro Max",
+  "iPhone14,2": "iPhone 13 Pro",
+  "iPhone14,3": "iPhone 13 Pro Max",
+  "iPhone14,4": "iPhone 13 mini",
+  "iPhone14,5": "iPhone 13",
+  "iPhone14,6": "iPhone SE 3",
+  "iPhone14,7": "iPhone 14",
+  "iPhone14,8": "iPhone 14 Plus",
+  "iPhone15,2": "iPhone 14 Pro",
+  "iPhone15,3": "iPhone 14 Pro Max",
+  "iPhone15,4": "iPhone 15",
+  "iPhone15,5": "iPhone 15 Plus",
+  "iPhone16,1": "iPhone 15 Pro",
+  "iPhone16,2": "iPhone 15 Pro Max",
+  "iPhone17,1": "iPhone 16 Pro",
+  "iPhone17,2": "iPhone 16 Pro Max",
+  "iPhone17,3": "iPhone 16",
+  "iPhone17,4": "iPhone 16 Plus",
+};
+
+export interface ParsedDevice {
   display_name: string | null;
   os: string | null;
   client_app: string | null;
-} {
+  app_version: string | null;
+}
+
+/**
+ * Best-effort device label from User-Agent + optional Happ HWID context.
+ * iOS Happ:     "Happ/2.17.1 CFNetwork/x Darwin/y (iPhone14,2)"
+ * macOS Happ:   "Happ/2.17.1 (Macintosh; ...)"
+ * Windows Happ: "Happ/2.17.1 (Windows NT 10.0; Win64; x64)"
+ * Android:      "Happ/2.17.1 (Linux; Android 14; SM-G991B)"
+ */
+export function parseDeviceInfo(ua: string | null): ParsedDevice {
   if (!ua)
-    return { display_name: null, os: null, client_app: "Unknown" };
+    return {
+      display_name: null,
+      os: null,
+      client_app: "Unknown",
+      app_version: null,
+    };
 
   const lower = ua.toLowerCase();
+
+  // Client app
   let client_app: string | null = null;
   if (lower.includes("happ")) client_app = "Happ";
   else if (lower.includes("v2rayng")) client_app = "v2rayNG";
@@ -285,20 +337,68 @@ export function parseDeviceInfo(ua: string | null): {
   else if (lower.includes("shadowrocket")) client_app = "Shadowrocket";
   else if (lower.includes("streisand")) client_app = "Streisand";
   else if (lower.includes("hiddify")) client_app = "Hiddify";
+  else if (lower.includes("singbox") || lower.includes("sing-box"))
+    client_app = "sing-box";
   else client_app = "Unknown";
 
+  // App version
+  let app_version: string | null = null;
+  const appVerMatch = ua.match(
+    /(?:Happ|v2rayNG|v2rayN|NekoBox|Hiddify|Streisand|Shadowrocket|sing-box)\/([0-9.]+)/i,
+  );
+  if (appVerMatch) app_version = appVerMatch[1];
+
+  // OS
   let os: string | null = null;
-  if (/iphone|ipad|ipod|ios/.test(lower)) os = "iOS";
-  else if (/android/.test(lower)) os = "Android";
-  else if (/macintosh|mac os x|darwin/.test(lower)) os = "macOS";
-  else if (/windows/.test(lower)) os = "Windows";
-  else if (/linux/.test(lower)) os = "Linux";
+  let os_version: string | null = null;
+  if (/iphone|ipad|ipod/.test(lower)) {
+    os = "iOS";
+    const iosVer = ua.match(/iPhone OS (\d+[._]\d+(?:[._]\d+)?)/i);
+    if (iosVer) os_version = iosVer[1].replace(/_/g, ".");
+  } else if (/android/.test(lower)) {
+    os = "Android";
+    const av = ua.match(/Android (\d+(?:\.\d+)*)/i);
+    if (av) os_version = av[1];
+  } else if (/macintosh|mac os x|darwin/.test(lower)) {
+    os = "macOS";
+    const mv = ua.match(/Mac OS X (\d+[._]\d+(?:[._]\d+)?)/i);
+    if (mv) os_version = mv[1].replace(/_/g, ".");
+  } else if (/windows/.test(lower)) {
+    os = "Windows";
+    if (/windows nt 10\.0/i.test(ua)) os_version = "10/11";
+    else if (/windows nt 6\.3/i.test(ua)) os_version = "8.1";
+    else if (/windows nt 6\.1/i.test(ua)) os_version = "7";
+  } else if (/linux/.test(lower)) {
+    os = "Linux";
+  }
 
-  // crude iPhone model guess
+  // Device model
   let display_name: string | null = null;
-  const iphoneMatch = ua.match(/iPhone(\d+),(\d+)/);
-  if (iphoneMatch) display_name = `iPhone (${iphoneMatch[0]})`;
-  else if (os) display_name = `${os} · ${client_app}`;
 
-  return { display_name, os, client_app };
+  // iPhone model: iPhone14,7 → "iPhone 14"
+  const iphoneMatch = ua.match(/iPhone\d+,\d+/);
+  if (iphoneMatch) {
+    display_name =
+      IPHONE_MODELS[iphoneMatch[0]] ?? iphoneMatch[0].replace(",", ".");
+  }
+
+  // iPad model: iPad13,4 → "iPad"
+  if (!display_name && /iPad\d+,\d+/.test(ua)) {
+    display_name = "iPad";
+  }
+
+  // Android model: extract last token like "SM-G991B" or "Pixel 7"
+  if (!display_name && os === "Android") {
+    const m = ua.match(/Android [\d.]+;\s*([^)]+)\)/);
+    if (m) display_name = m[1].split(";").pop()?.trim() ?? null;
+  }
+
+  // macOS — try to use hostname from headers (caller can override)
+  // Windows — same
+  if (!display_name) {
+    if (os && os_version) display_name = `${os} ${os_version}`;
+    else if (os) display_name = os;
+  }
+
+  return { display_name, os, client_app, app_version };
 }
