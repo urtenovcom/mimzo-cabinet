@@ -10,6 +10,7 @@
 import type { NextRequest } from "next/server";
 
 import { createAdminClient } from "@/lib/supabase/admin";
+import { ensureMarzbanUserForSubscription } from "@/lib/marzban-sync";
 import {
   buildActiveSubscription,
   buildHeaders,
@@ -165,8 +166,21 @@ export async function GET(request: NextRequest, { params }: Params) {
     }
   }
 
-  // 4) Build the actual subscription
-  const body = buildActiveSubscription({ uuid: sub.user_id });
+  // 4) Lazily provision a Marzban user for this subscription and fetch
+  //    the real per-user vless links. Falls back to legacy shared UUID
+  //    if Marzban is unreachable.
+  let marzbanLinks: string[] | undefined;
+  try {
+    marzbanLinks = await ensureMarzbanUserForSubscription(supabase, sub);
+  } catch (e) {
+    console.error("[sub] marzban provisioning failed, using fallback:", e);
+  }
+
+  // 5) Build the actual subscription
+  const body = buildActiveSubscription({
+    uuid: sub.user_id,
+    marzbanLinks,
+  });
   return new Response(body, {
     headers: buildHeaders({
       trafficUsedBytes,

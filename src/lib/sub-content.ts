@@ -158,6 +158,12 @@ function b64Std(s: string): string {
 export interface SubBuildInput {
   /** User UUID — used as the VLESS client id in each vless URL */
   uuid: string;
+  /**
+   * Optional override: ready-made vless:// URLs straight from Marzban.
+   * When present, the builder uses these instead of the hardcoded
+   * SERVERS templates (per-user UUID, real Marzban routing).
+   */
+  marzbanLinks?: string[];
   /** Whether the subscription is expired or out-of-limits */
   warning?: string;
 }
@@ -169,8 +175,10 @@ export function buildActiveSubscription(input: SubBuildInput): string {
   const routingBlob = b64UrlNoPad(JSON.stringify(ROUTING_PROFILE));
   const lines: string[] = [];
   lines.push(`happ://routing/onadd/${routingBlob}`);
-  for (const server of SERVERS) {
-    lines.push(server.build(input.uuid));
+  if (input.marzbanLinks && input.marzbanLinks.length > 0) {
+    for (const link of input.marzbanLinks) lines.push(link);
+  } else {
+    for (const server of SERVERS) lines.push(server.build(input.uuid));
   }
   return b64Std(lines.join("\n"));
 }
