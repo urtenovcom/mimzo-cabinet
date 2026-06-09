@@ -218,6 +218,37 @@ export function buildHeaders(input: SubHeadersInput): Record<string, string> {
   };
 }
 
+// User-Agents we treat as actual VPN clients (Happ, sing-box family).
+// Anything else (browsers, curl, scanners, bots) is rejected and NOT
+// counted against the device limit — they get the subscription content
+// but no row is inserted into public.devices.
+const VPN_CLIENT_HINTS = [
+  "happ",
+  "v2rayng",
+  "v2rayn",
+  "nekobox",
+  "nekoray",
+  "shadowrocket",
+  "streisand",
+  "hiddify",
+  "singbox",
+  "sing-box",
+  "xray",
+  "matsuri",
+  "fairplay",
+  "foxray",
+  "v2box",
+  "clash",
+  "leaf",
+  "outline",
+];
+
+export function isVpnClientUA(ua: string | null): boolean {
+  if (!ua) return false;
+  const lower = ua.toLowerCase();
+  return VPN_CLIENT_HINTS.some((kw) => lower.includes(kw));
+}
+
 /**
  * Hash a User-Agent into a stable 16-hex device id.
  * Falls back to first 16 chars of a default if UA is missing.

@@ -15,6 +15,7 @@ import {
   buildHeaders,
   buildWarningSubscription,
   deviceHash,
+  isVpnClientUA,
   parseDeviceInfo,
 } from "@/lib/sub-content";
 import type { Subscription } from "@/types/db";
@@ -86,44 +87,47 @@ export async function GET(request: NextRequest, { params }: Params) {
     });
   }
 
-  // 3) Device tracking (by UA hash)
+  // 3) Device tracking — ONLY for real VPN clients.
+  // Browsers, curl, scanners get the bundle but don't burn a slot.
   const ua = request.headers.get("user-agent");
-  const hash = await deviceHash(ua);
+  if (isVpnClientUA(ua)) {
+    const hash = await deviceHash(ua);
 
-  const { data: existingDevice } = await supabase
-    .from("devices")
-    .select("id")
-    .eq("subscription_id", sub.id)
-    .eq("device_hash", hash)
-    .maybeSingle();
-
-  if (existingDevice) {
-    await supabase
+    const { data: existingDevice } = await supabase
       .from("devices")
-      .update({ last_seen: new Date().toISOString() })
-      .eq("id", existingDevice.id);
-  } else {
-    const { count } = await supabase
-      .from("devices")
-      .select("*", { count: "exact", head: true })
-      .eq("subscription_id", sub.id);
+      .select("id")
+      .eq("subscription_id", sub.id)
+      .eq("device_hash", hash)
+      .maybeSingle();
 
-    const used = count ?? 0;
-    if (used >= sub.devices_limit) {
-      return warning(
-        `Лимит устройств (${sub.devices_limit}). Отвяжи лишние в кабинете`,
-        { trafficUsedBytes, trafficTotalBytes, expiresAtUnix },
-      );
+    if (existingDevice) {
+      await supabase
+        .from("devices")
+        .update({ last_seen: new Date().toISOString() })
+        .eq("id", existingDevice.id);
+    } else {
+      const { count } = await supabase
+        .from("devices")
+        .select("*", { count: "exact", head: true })
+        .eq("subscription_id", sub.id);
+
+      const used = count ?? 0;
+      if (used >= sub.devices_limit) {
+        return warning(
+          `Лимит устройств (${sub.devices_limit}). Отвяжи лишние в кабинете`,
+          { trafficUsedBytes, trafficTotalBytes, expiresAtUnix },
+        );
+      }
+
+      const info = parseDeviceInfo(ua);
+      await supabase.from("devices").insert({
+        subscription_id: sub.id,
+        device_hash: hash,
+        display_name: info.display_name,
+        os: info.os,
+        client_app: info.client_app,
+      });
     }
-
-    const info = parseDeviceInfo(ua);
-    await supabase.from("devices").insert({
-      subscription_id: sub.id,
-      device_hash: hash,
-      display_name: info.display_name,
-      os: info.os,
-      client_app: info.client_app,
-    });
   }
 
   // 4) Build the actual subscription

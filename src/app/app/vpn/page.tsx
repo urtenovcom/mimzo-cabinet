@@ -24,6 +24,8 @@ import {
 } from "@/lib/format";
 import type { Device, Subscription } from "@/types/db";
 
+import { RemoveAllDevicesButton, RemoveDeviceButton } from "./device-actions";
+
 const HAPP_LINKS: Array<{ name: string; href: string; Icon: typeof Apple }> = [
   {
     name: "iOS",
@@ -190,11 +192,14 @@ export default async function VpnPage() {
 
       {/* Devices list */}
       <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Подключённые устройства</CardTitle>
-          <CardDescription>
-            Устройства добавляются автоматически при первом подключении к VPN.
-          </CardDescription>
+        <CardHeader className="flex flex-row items-start justify-between space-y-0 gap-3">
+          <div className="space-y-1">
+            <CardTitle className="text-lg">Подключённые устройства</CardTitle>
+            <CardDescription>
+              Считаются только реальные подключения VPN-клиента (Happ и т.п.) — браузер и тесты не занимают слот.
+            </CardDescription>
+          </div>
+          {devices && devices.length > 0 && <RemoveAllDevicesButton />}
         </CardHeader>
         <CardContent>
           {devices && devices.length > 0 ? (
@@ -209,12 +214,11 @@ export default async function VpnPage() {
                       {d.display_name ?? d.client_app ?? "Устройство"}
                     </div>
                     <div className="text-xs text-muted-foreground">
-                      {[d.os, d.client_app].filter(Boolean).join(" · ")}
+                      {[d.os, d.client_app].filter(Boolean).join(" · ") ||
+                        "Неизвестный клиент"}
                     </div>
                   </div>
-                  <Button variant="ghost" size="sm" disabled>
-                    Отключить
-                  </Button>
+                  <RemoveDeviceButton deviceId={d.id} />
                 </li>
               ))}
             </ul>
