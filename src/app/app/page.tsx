@@ -18,35 +18,68 @@ import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { CopyButton } from "@/components/ui/copy-button";
 import { createClient } from "@/lib/supabase/server";
+import { daysUntil, formatBytes, formatDate, formatDaysLeft } from "@/lib/format";
+import type { Subscription } from "@/types/db";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  const name = user?.email?.split("@")[0] ?? "друг";
 
-  // ----- MOCK DATA (потом сюда подтянем реальный Marzneshin API) -----
-  const subscription = {
-    plan: "Демо",
-    trafficUsedGB: 0.4,
-    trafficTotalGB: 10,
-    expiresAt: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), // через 3 дня
-    devicesUsed: 1,
-    devicesLimit: 2,
-    subUrl:
-      "https://sub.mimzo.ru/sub/dba5c50a5a574d2105cf08e0f3f95a18",
-  };
+  // Fetch active subscription (the one expiring the latest)
+  const { data: sub } = (await supabase
+    .from("subscriptions")
+    .select("*")
+    .eq("user_id", user!.id)
+    .order("expires_at", { ascending: false })
+    .limit(1)
+    .maybeSingle()) as { data: Subscription | null };
+
+  const { count: devicesUsed } = sub
+    ? await supabase
+        .from("devices")
+        .select("*", { count: "exact", head: true })
+        .eq("subscription_id", sub.id)
+    : { count: 0 };
+
+  const name = user?.email?.split("@")[0] ?? "друг";
+  const subUrl = sub
+    ? `https://sub.mimzo.ru/sub/${sub.sub_token}`
+    : "";
+  const trafficUsedBytes = sub?.traffic_used_bytes ?? 0;
+  const trafficTotalBytes = sub ? sub.traffic_gb * 1024 ** 3 : 0;
   const trafficPercent =
-    (subscription.trafficUsedGB / subscription.trafficTotalGB) * 100;
-  const daysLeft = Math.ceil(
-    (subscription.expiresAt.getTime() - Date.now()) / (1000 * 60 * 60 * 24),
-  );
-  // -----------------------------------------------------------------
+    trafficTotalBytes > 0 ? (trafficUsedBytes / trafficTotalBytes) * 100 : 0;
+  const daysLeft = sub ? Math.max(0, daysUntil(sub.expires_at)) : 0;
+  const planTitle = sub?.is_trial ? "Демо" : "Базовый";
+  const unlimited = (sub?.traffic_gb ?? 0) >= 9999;
+
+  if (!sub) {
+    return (
+      <div className="space-y-6">
+        <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight capitalize">
+          Привет, {name}
+        </h1>
+        <Card>
+          <CardContent className="p-6 text-center space-y-3">
+            <p className="text-muted-foreground">
+              У тебя пока нет активной подписки. Выбери тариф чтобы начать.
+            </p>
+            <Button asChild>
+              <Link href="/app/plans">
+                Выбрать тариф
+                <ChevronRight />
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
-      {/* Приветствие */}
       <header className="space-y-2">
         <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight capitalize">
           Привет, {name}
@@ -56,8 +89,7 @@ export default async function DashboardPage() {
         </p>
       </header>
 
-      {/* Алёрт если трайл */}
-      {subscription.plan === "Демо" && (
+      {sub.is_trial && (
         <Card className="border-primary/30 bg-primary/5">
           <CardContent className="flex flex-col sm:flex-row sm:items-center gap-3 p-5">
             <div className="size-10 shrink-0 rounded-lg bg-primary/15 flex items-center justify-center text-primary">
@@ -65,12 +97,10 @@ export default async function DashboardPage() {
             </div>
             <div className="flex-1">
               <div className="font-medium">
-                У тебя демо-доступ — {daysLeft} {plural(daysLeft, ["день", "дня", "дней"])}{" "}
-                осталось
+                У тебя демо-доступ — {formatDaysLeft(sub.expires_at)} осталось
               </div>
               <div className="text-sm text-muted-foreground">
-                Чтобы продолжить пользоваться без перерывов — выбери тариф
-                заранее.
+                Чтобы продолжить без перерывов — выбери тариф заранее.
               </div>
             </div>
             <Button asChild>
@@ -83,12 +113,11 @@ export default async function DashboardPage() {
         </Card>
       )}
 
-      {/* Подписка крупным блоком */}
       <Card>
         <CardHeader className="flex-row items-start justify-between space-y-0 gap-4">
           <div className="space-y-1">
             <CardDescription>Текущий тариф</CardDescription>
-            <CardTitle className="text-2xl">{subscription.plan}</CardTitle>
+            <CardTitle className="text-2xl">{planTitle}</CardTitle>
           </div>
           <Button asChild variant="outline" size="sm">
             <Link href="/app/vpn">
@@ -98,7 +127,6 @@ export default async function DashboardPage() {
           </Button>
         </CardHeader>
         <CardContent className="space-y-6">
-          {/* Трафик */}
           <div className="space-y-2">
             <div className="flex items-center justify-between text-sm">
               <span className="text-muted-foreground inline-flex items-center gap-1.5">
@@ -107,50 +135,54 @@ export default async function DashboardPage() {
               </span>
               <span className="tabular-nums">
                 <span className="font-medium text-foreground">
-                  {subscription.trafficUsedGB.toFixed(1)} ГБ
+                  {formatBytes(trafficUsedBytes)}
                 </span>
-                <span className="text-muted-foreground"> / {subscription.trafficTotalGB} ГБ</span>
+                <span className="text-muted-foreground">
+                  {" / "}
+                  {unlimited ? "Безлимит" : `${sub.traffic_gb} ГБ`}
+                </span>
               </span>
             </div>
-            <Progress value={trafficPercent} />
+            {!unlimited && <Progress value={trafficPercent} />}
           </div>
 
-          {/* Сетка фактов */}
           <div className="grid sm:grid-cols-2 gap-4">
             <Stat
               icon={<Calendar className="size-4" />}
               label="Истекает"
-              value={`${daysLeft} ${plural(daysLeft, ["день", "дня", "дней"])}`}
-              hint={subscription.expiresAt.toLocaleDateString("ru-RU")}
+              value={formatDaysLeft(sub.expires_at)}
+              hint={formatDate(sub.expires_at)}
             />
             <Stat
               icon={<Smartphone className="size-4" />}
               label="Устройства"
-              value={`${subscription.devicesUsed} / ${subscription.devicesLimit}`}
+              value={`${devicesUsed ?? 0} / ${sub.devices_limit}`}
               hint="используется / лимит"
             />
           </div>
         </CardContent>
       </Card>
 
-      {/* Подписка URL */}
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">Ссылка-подписка для Happ</CardTitle>
           <CardDescription>
-            Вставь эту ссылку в Happ → «Добавить подписку». Она автоматически
-            настроит VPN на устройстве.
+            Вставь её в Happ → «Добавить подписку». VPN настроится автоматически.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex flex-col sm:flex-row gap-2">
             <code className="flex-1 overflow-x-auto rounded-lg border border-border bg-card/60 px-3 py-2.5 text-xs font-mono text-muted-foreground">
-              {subscription.subUrl}
+              {subUrl}
             </code>
-            <CopyButton value={subscription.subUrl} />
+            <CopyButton value={subUrl} />
           </div>
         </CardContent>
       </Card>
+
+      <p className="text-xs text-muted-foreground">
+        Дней до истечения: {daysLeft}
+      </p>
     </div>
   );
 }
@@ -176,13 +208,4 @@ function Stat({
       {hint && <div className="text-xs text-muted-foreground">{hint}</div>}
     </div>
   );
-}
-
-function plural(n: number, forms: [string, string, string]) {
-  const mod10 = n % 10;
-  const mod100 = n % 100;
-  if (mod10 === 1 && mod100 !== 11) return forms[0];
-  if ([2, 3, 4].includes(mod10) && ![12, 13, 14].includes(mod100))
-    return forms[1];
-  return forms[2];
 }
