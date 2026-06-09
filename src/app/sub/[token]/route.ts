@@ -89,17 +89,16 @@ export async function GET(request: NextRequest, { params }: Params) {
 
   // 3) Device tracking — ONLY for real VPN clients.
   const ua = request.headers.get("user-agent");
+  const h = (name: string) => request.headers.get(name);
 
-  // Happ ships HWID under a few possible header names; pick the first non-empty
-  const hwid =
-    request.headers.get("x-hwid") ??
-    request.headers.get("hwid") ??
-    request.headers.get("x-device-id") ??
-    null;
+  // Happ packs device metadata into custom headers — prefer those.
+  const hwid = h("x-hwid") ?? h("hwid") ?? h("x-device-id");
+  const deviceModel = h("x-device-model"); // e.g. "iPhone 14 Pro"
+  const deviceOs = h("x-device-os"); // e.g. "iOS"
+  const osVersion = h("x-ver-os"); // e.g. "26.5"
+  const appVersion = h("x-app-version"); // e.g. "4.11.0"
 
-  // Debug — temporarily dump all headers in container logs so we can see
-  // what Happ actually sends and improve parsing. Remove once stable.
-  if (process.env.NODE_ENV !== "production" || process.env.LOG_SUB_HEADERS === "1") {
+  if (process.env.LOG_SUB_HEADERS === "1") {
     const summary: Record<string, string> = {};
     request.headers.forEach((v, k) => {
       summary[k] = v;
@@ -108,10 +107,19 @@ export async function GET(request: NextRequest, { params }: Params) {
   }
 
   if (isVpnClientUA(ua)) {
-    // Use HWID for the device key when Happ provides one — more stable than UA.
+    // HWID is the most stable identifier — use it when Happ provides one.
     const hash = hwid
-      ? hwid.slice(-16).toLowerCase().padStart(16, "0")
+      ? hwid.toLowerCase().slice(-16).padStart(16, "0")
       : await deviceHash(ua);
+
+    // Build the richest display we can from Happ headers (fallback to UA parse)
+    const parsed = parseDeviceInfo(ua);
+    const display_name = deviceModel ?? parsed.display_name;
+    const os = [deviceOs ?? parsed.os, osVersion].filter(Boolean).join(" ") ||
+      null;
+    const client_app = appVersion
+      ? `Happ ${appVersion}`
+      : parsed.client_app;
 
     const { data: existingDevice } = await supabase
       .from("devices")
@@ -125,8 +133,9 @@ export async function GET(request: NextRequest, { params }: Params) {
         .from("devices")
         .update({
           last_seen: new Date().toISOString(),
-          hwid: hwid ?? undefined,
-          ua_raw: ua ?? undefined,
+          display_name,
+          os,
+          client_app,
         })
         .eq("id", existingDevice.id);
     } else {
@@ -143,17 +152,16 @@ export async function GET(request: NextRequest, { params }: Params) {
         );
       }
 
-      const info = parseDeviceInfo(ua);
-      await supabase.from("devices").insert({
+      const { error: insertErr } = await supabase.from("devices").insert({
         subscription_id: sub.id,
         device_hash: hash,
-        display_name: info.display_name,
-        os: info.os,
-        client_app: info.client_app,
-        app_version: info.app_version,
-        hwid,
-        ua_raw: ua,
+        display_name,
+        os,
+        client_app,
       });
+      if (insertErr) {
+        console.error("[sub] device insert failed:", insertErr);
+      }
     }
   }
 

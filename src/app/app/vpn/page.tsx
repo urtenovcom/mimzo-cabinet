@@ -214,18 +214,14 @@ export default async function VpnPage() {
                       <span className="font-medium truncate">
                         {d.display_name ?? d.client_app ?? "Устройство"}
                       </span>
-                      {d.hwid && (
-                        <span className="font-mono text-[10px] uppercase tracking-wide text-muted-foreground bg-muted/60 px-1.5 py-0.5 rounded">
-                          {d.hwid.slice(-8)}
-                        </span>
-                      )}
+                      <span className="font-mono text-[10px] uppercase tracking-wide text-muted-foreground bg-muted/60 px-1.5 py-0.5 rounded">
+                        {d.device_hash.slice(-8)}
+                      </span>
                     </div>
                     <div className="text-xs text-muted-foreground">
                       {[
                         d.os,
-                        d.client_app && d.app_version
-                          ? `${d.client_app} ${d.app_version}`
-                          : d.client_app,
+                        d.client_app,
                         new Date(d.last_seen).toLocaleString("ru-RU", {
                           day: "2-digit",
                           month: "2-digit",
