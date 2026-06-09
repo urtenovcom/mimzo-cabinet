@@ -3,14 +3,15 @@
 # ---------- Stage 1: deps ----------
 FROM node:22-alpine AS deps
 WORKDIR /app
-RUN corepack enable && corepack prepare pnpm@latest --activate
-COPY package.json pnpm-lock.yaml ./
-RUN pnpm install --frozen-lockfile --prod=false
+RUN corepack enable && corepack use pnpm@11.5.2
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+# Approve build scripts non-interactively (pnpm v10+ requires this)
+RUN pnpm install --frozen-lockfile --prod=false --config.confirmModulesPurpose=false --config.ignored-built-dependencies="[]" || pnpm install --frozen-lockfile --prod=false --ignore-scripts
 
 # ---------- Stage 2: builder ----------
 FROM node:22-alpine AS builder
 WORKDIR /app
-RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN corepack enable && corepack use pnpm@11.5.2
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
