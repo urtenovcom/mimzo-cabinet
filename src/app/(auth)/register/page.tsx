@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { FormEvent, useState } from "react";
+import { FormEvent, Suspense, useState } from "react";
 import { Loader2, AlertCircle, CheckCircle2, Sparkles } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,27 @@ import {
 import { createClient } from "@/lib/supabase/client";
 
 export default function RegisterPage() {
+  return (
+    <Suspense fallback={<RegisterFormSkeleton />}>
+      <RegisterForm />
+    </Suspense>
+  );
+}
+
+function RegisterFormSkeleton() {
+  return (
+    <Card className="border-border/60">
+      <CardHeader className="space-y-2">
+        <CardTitle className="text-2xl">Создать аккаунт</CardTitle>
+      </CardHeader>
+      <CardContent className="flex justify-center py-8">
+        <Loader2 className="size-6 animate-spin text-muted-foreground" />
+      </CardContent>
+    </Card>
+  );
+}
+
+function RegisterForm() {
   const searchParams = useSearchParams();
   const refCode = searchParams.get("ref");
   const [email, setEmail] = useState("");
