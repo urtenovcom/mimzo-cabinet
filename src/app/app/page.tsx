@@ -1,6 +1,5 @@
 import {
   Calendar,
-  Copy,
   Database,
   ChevronRight,
   Smartphone,
@@ -17,6 +16,7 @@ import {
 } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
+import { CopyButton } from "@/components/ui/copy-button";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function DashboardPage() {
@@ -147,10 +147,7 @@ export default async function DashboardPage() {
             <code className="flex-1 overflow-x-auto rounded-lg border border-border bg-card/60 px-3 py-2.5 text-xs font-mono text-muted-foreground">
               {subscription.subUrl}
             </code>
-            <Button variant="outline">
-              <Copy />
-              Копировать
-            </Button>
+            <CopyButton value={subscription.subUrl} />
           </div>
         </CardContent>
       </Card>
