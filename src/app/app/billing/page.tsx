@@ -15,6 +15,8 @@ import { createClient } from "@/lib/supabase/server";
 import { formatDateShort, formatRub } from "@/lib/format";
 import type { Payment, Profile } from "@/types/db";
 
+import { PromoForm } from "./promo-form";
+
 const PAYMENT_PURPOSE_LABEL: Record<string, string> = {
   plan: "Покупка тарифа",
   extra_device: "Дополнительное устройство",
@@ -88,20 +90,7 @@ export default async function BillingPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form className="flex flex-col sm:flex-row gap-2">
-            <div className="flex-1 space-y-1.5">
-              <Label htmlFor="promo">Код</Label>
-              <Input
-                id="promo"
-                placeholder="WELCOME"
-                autoComplete="off"
-                disabled
-              />
-            </div>
-            <Button disabled className="sm:self-end">
-              Применить (скоро)
-            </Button>
-          </form>
+          <PromoForm />
         </CardContent>
       </Card>
 
