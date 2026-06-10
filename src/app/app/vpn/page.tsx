@@ -74,7 +74,8 @@ export default async function VpnPage() {
   const unlimited = sub.traffic_gb >= 9999;
 
   const subUrl = `https://sub.mimzo.ru/sub/${sub.sub_token}`;
-  const happUrl = `happ://add/${Buffer.from(subUrl).toString("base64url")}`;
+  // Happ expects STANDARD base64 of the subscription URL (not base64url).
+  const happUrl = `happ://add/${Buffer.from(subUrl).toString("base64")}`;
 
   return (
     <div className="space-y-6 sm:space-y-8">
@@ -86,6 +87,27 @@ export default async function VpnPage() {
           Тариф, ссылка для Happ, устройства и инструкции.
         </p>
       </header>
+
+      {/* Sub URL + Happ button */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Подключение</CardTitle>
+          <CardDescription>
+            Скопируй ссылку и добавь её в Happ — VPN настроится сам.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex flex-col sm:flex-row gap-2">
+            <code className="flex-1 overflow-x-auto rounded-lg border border-border bg-card/60 px-3 py-2.5 text-xs font-mono text-muted-foreground">
+              {subUrl}
+            </code>
+            <CopyButton value={subUrl} />
+          </div>
+          <Button asChild className="w-full sm:w-auto">
+            <a href={happUrl}>Открыть в Happ</a>
+          </Button>
+        </CardContent>
+      </Card>
 
       {/* Tariff + traffic + days + devices (with link) */}
       <Card>
@@ -159,28 +181,7 @@ export default async function VpnPage() {
         </CardContent>
       </Card>
 
-      {/* Sub URL + Happ button */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Подключение</CardTitle>
-          <CardDescription>
-            Скопируй ссылку и добавь её в Happ — VPN настроится сам.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex flex-col sm:flex-row gap-2">
-            <code className="flex-1 overflow-x-auto rounded-lg border border-border bg-card/60 px-3 py-2.5 text-xs font-mono text-muted-foreground">
-              {subUrl}
-            </code>
-            <CopyButton value={subUrl} />
-          </div>
-          <Button asChild className="w-full sm:w-auto">
-            <a href={happUrl}>Открыть в Happ</a>
-          </Button>
-        </CardContent>
-      </Card>
-
-      {/* Instructions — separate block below the connection card */}
+      {/* Instructions — separate block below */}
       <InstructionsBlock />
     </div>
   );
