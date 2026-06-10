@@ -1,8 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { FormEvent, useState } from "react";
+import { FormEvent, useState, useTransition } from "react";
 import { Loader2, AlertCircle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -15,38 +14,23 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { createClient } from "@/lib/supabase/client";
+
+import { signInAction } from "./actions";
 
 export default function LoginPage() {
-  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [pending, startTransition] = useTransition();
 
-  async function onSubmit(e: FormEvent) {
+  function onSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
-    setLoading(true);
-
-    const supabase = createClient();
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
+    startTransition(async () => {
+      const res = await signInAction(email, password);
+      if (res?.error) setError(res.error);
+      // success → server-side redirect already happened, nothing else to do
     });
-
-    if (error) {
-      setError(translateError(error.message));
-      setLoading(false);
-      return;
-    }
-    // After login on mimzo.ru → bounce to authed cabinet at app.mimzo.ru
-    if (typeof window !== "undefined" && window.location.hostname === "mimzo.ru") {
-      window.location.assign("https://app.mimzo.ru/app");
-      return;
-    }
-    router.push("/app");
-    router.refresh();
   }
 
   return (
@@ -70,7 +54,7 @@ export default function LoginPage() {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              disabled={loading}
+              disabled={pending}
             />
           </div>
 
@@ -92,7 +76,7 @@ export default function LoginPage() {
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              disabled={loading}
+              disabled={pending}
             />
           </div>
 
@@ -103,8 +87,8 @@ export default function LoginPage() {
             </div>
           )}
 
-          <Button type="submit" size="lg" className="w-full" disabled={loading}>
-            {loading && <Loader2 className="animate-spin" />}
+          <Button type="submit" size="lg" className="w-full" disabled={pending}>
+            {pending && <Loader2 className="animate-spin" />}
             Войти
           </Button>
         </form>
@@ -121,18 +105,4 @@ export default function LoginPage() {
       </CardContent>
     </Card>
   );
-}
-
-function translateError(msg: string): string {
-  const lower = msg.toLowerCase();
-  if (lower.includes("invalid login credentials")) {
-    return "Неверный email или пароль.";
-  }
-  if (lower.includes("email not confirmed")) {
-    return "Email ещё не подтверждён. Проверь почту.";
-  }
-  if (lower.includes("too many requests")) {
-    return "Слишком много попыток. Подожди минуту.";
-  }
-  return msg;
 }
