@@ -14,6 +14,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import {
   createUser,
+  DEFAULT_INBOUNDS,
   deleteUser,
   getUser,
   listAllUsers,
@@ -68,16 +69,28 @@ export async function ensureMarzbanUserForDevice(input: EnsureDeviceUserInput) {
       dataLimitBytes: dataLimit,
       expireUnix,
     });
-  } else if (
-    (user.data_limit ?? 0) !== dataLimit ||
-    (user.expire ?? 0) !== expireUnix ||
-    user.status !== targetStatus
-  ) {
-    user = await modifyUser(username, {
-      dataLimitBytes: dataLimit,
-      expireUnix,
-      status: targetStatus,
-    });
+  } else {
+    // Reconcile every field that might drift — limits, status, and
+    // inbound list (new inbounds added to xray after the user was
+    // first provisioned would otherwise never reach this user).
+    const currentInbounds = user.inbounds?.vless ?? [];
+    const inboundsDiverged =
+      currentInbounds.length !== DEFAULT_INBOUNDS.length ||
+      DEFAULT_INBOUNDS.some((t) => !currentInbounds.includes(t));
+
+    if (
+      (user.data_limit ?? 0) !== dataLimit ||
+      (user.expire ?? 0) !== expireUnix ||
+      user.status !== targetStatus ||
+      inboundsDiverged
+    ) {
+      user = await modifyUser(username, {
+        dataLimitBytes: dataLimit,
+        expireUnix,
+        status: targetStatus,
+        inbounds: inboundsDiverged ? DEFAULT_INBOUNDS : undefined,
+      });
+    }
   }
 
   return { username, links: orderLinks(user.links) };

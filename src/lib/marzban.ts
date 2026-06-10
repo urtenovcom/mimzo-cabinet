@@ -93,7 +93,12 @@ export interface MarzbanUser {
 /**
  * Default inbounds attached to every Mimzo user — both servers.
  */
-export const DEFAULT_INBOUNDS = ["VLESS-WS-FI", "VLESS-TCP-Reality-NL"];
+export const DEFAULT_INBOUNDS = [
+  "VLESS-WS-FI",
+  "VLESS-TCP-Reality-NL",
+  "VLESS-WS-DE",
+  "VLESS-WS-AUTO",
+];
 
 export async function getUser(username: string): Promise<MarzbanUser | null> {
   try {
@@ -141,6 +146,8 @@ export interface ModifyUserInput {
   dataLimitBytes?: number;
   expireUnix?: number;
   status?: "active" | "disabled";
+  /** Replace the full inbound list (Marzban accepts only a full replacement) */
+  inbounds?: string[];
 }
 
 export async function modifyUser(
@@ -151,6 +158,7 @@ export async function modifyUser(
   if (input.dataLimitBytes !== undefined) body.data_limit = input.dataLimitBytes;
   if (input.expireUnix !== undefined) body.expire = input.expireUnix;
   if (input.status !== undefined) body.status = input.status;
+  if (input.inbounds !== undefined) body.inbounds = { vless: input.inbounds };
   return marzbanRequest<MarzbanUser>(
     `/api/user/${encodeURIComponent(username)}`,
     { method: "PUT", json: body },
