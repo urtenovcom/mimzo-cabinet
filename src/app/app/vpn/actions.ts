@@ -3,6 +3,7 @@
 import { randomBytes } from "crypto";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { deleteUser as deleteMarzbanUser } from "@/lib/marzban";
 
 export async function removeDevice(deviceId: string) {
   const supabase = await createClient();
@@ -36,7 +37,7 @@ export async function rotateSubscription() {
 
   const { data: sub } = await supabase
     .from("subscriptions")
-    .select("id")
+    .select("id, marzban_username")
     .eq("user_id", user.id)
     .order("expires_at", { ascending: false })
     .limit(1)
@@ -44,11 +45,21 @@ export async function rotateSubscription() {
 
   if (!sub) return { error: "no active subscription" };
 
-  const newToken = randomBytes(16).toString("hex");
+  // Wipe Marzban user so the OLD vless URLs (cached in any Happ) become
+  // unable to authenticate. On next /sub hit, ensureMarzbanUser will
+  // create a fresh one with a brand-new UUID.
+  if (sub.marzban_username) {
+    try {
+      await deleteMarzbanUser(sub.marzban_username);
+    } catch (e) {
+      console.error("[rotate] marzban delete failed:", e);
+    }
+  }
 
+  const newToken = randomBytes(16).toString("hex");
   const { error: updateErr } = await supabase
     .from("subscriptions")
-    .update({ sub_token: newToken })
+    .update({ sub_token: newToken, marzban_username: null })
     .eq("id", sub.id);
   if (updateErr) return { error: updateErr.message };
 

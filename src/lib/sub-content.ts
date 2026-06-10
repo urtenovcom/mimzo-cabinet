@@ -213,7 +213,7 @@ export function buildHeaders(input: SubHeadersInput): Record<string, string> {
   return {
     "Content-Type": "text/plain; charset=utf-8",
     "Profile-Title": "base64:TWltem8=",
-    "Profile-Update-Interval": "12",
+    "Profile-Update-Interval": "1",
     "Support-Url": APP_ORIGIN,
     "Profile-Web-Page-Url": APP_ORIGIN,
     "Content-Disposition": `inline; filename="Mimzo"`,

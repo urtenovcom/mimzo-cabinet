@@ -25,6 +25,7 @@ import {
 import type { Device, Subscription } from "@/types/db";
 
 import { RemoveAllDevicesButton, RemoveDeviceButton } from "./device-actions";
+import { RotateSubButton } from "./rotate-button";
 
 const HAPP_LINKS: Array<{ name: string; href: string; Icon: typeof Apple }> = [
   {
@@ -155,11 +156,14 @@ export default async function VpnPage() {
 
       {/* Subscription URL + connect */}
       <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Подключение в Happ</CardTitle>
-          <CardDescription>
-            Скачай Happ → импортируй подписку → выбери сервер → подключайся.
-          </CardDescription>
+        <CardHeader className="flex flex-row items-start justify-between space-y-0 gap-3">
+          <div className="space-y-1">
+            <CardTitle className="text-lg">Подключение в Happ</CardTitle>
+            <CardDescription>
+              Скачай Happ → импортируй подписку → выбери сервер → подключайся.
+            </CardDescription>
+          </div>
+          <RotateSubButton />
         </CardHeader>
         <CardContent className="space-y-5">
           <div className="flex flex-col sm:flex-row gap-2">
@@ -196,7 +200,7 @@ export default async function VpnPage() {
           <div className="space-y-1">
             <CardTitle className="text-lg">Подключённые устройства</CardTitle>
             <CardDescription>
-              Считаются только реальные подключения VPN-клиента (Happ и т.п.) — браузер и тесты не занимают слот.
+              «Отключить» убирает устройство из списка — но оно автоматически вернётся в течение ~1 часа, если продолжит пользоваться VPN. Чтобы реально отрезать доступ — нажми «Перевыпустить подписку» (старая ссылка перестанет работать).
             </CardDescription>
           </div>
           {devices && devices.length > 0 && <RemoveAllDevicesButton />}
