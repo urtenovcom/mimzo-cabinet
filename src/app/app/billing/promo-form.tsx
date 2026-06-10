@@ -34,7 +34,7 @@ export function PromoForm() {
           <Label htmlFor="promo">Код</Label>
           <Input
             id="promo"
-            placeholder="AZAMAT"
+            placeholder="WELCOME"
             autoComplete="off"
             autoCapitalize="characters"
             spellCheck={false}
