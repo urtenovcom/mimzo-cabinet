@@ -36,11 +36,19 @@ export default async function PlansPage() {
   return (
     <div className="space-y-8">
       <header className="space-y-2">
+        <div className="text-sm">
+          <a
+            href="/app/vpn"
+            className="text-muted-foreground hover:text-foreground transition-colors"
+          >
+            ← Назад к подписке
+          </a>
+        </div>
         <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">
-          Тарифы
+          Сменить тариф
         </h1>
         <p className="text-sm text-muted-foreground">
-          Выбери план под себя. Чем длиннее — тем дешевле в месяц.
+          Чем длиннее — тем дешевле в месяц. Оплата раз в период через ЮKassa.
         </p>
       </header>
 

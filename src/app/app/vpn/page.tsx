@@ -1,10 +1,5 @@
-import {
-  Apple,
-  Database,
-  Smartphone,
-  MonitorSmartphone,
-  ExternalLink,
-} from "lucide-react";
+import Link from "next/link";
+import { Database, Sparkles } from "lucide-react";
 
 import {
   Card,
@@ -15,7 +10,6 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { CopyButton } from "@/components/ui/copy-button";
 import { createClient } from "@/lib/supabase/server";
 import {
   formatBytes,
@@ -25,24 +19,6 @@ import {
 import type { Device, Subscription } from "@/types/db";
 
 import { RemoveAllDevicesButton, RemoveDeviceButton } from "./device-actions";
-
-const HAPP_LINKS: Array<{ name: string; href: string; Icon: typeof Apple }> = [
-  {
-    name: "iOS",
-    href: "https://apps.apple.com/us/app/happ-proxy-utility/id6504287215",
-    Icon: Apple,
-  },
-  {
-    name: "Android",
-    href: "https://play.google.com/store/apps/details?id=com.happproxy",
-    Icon: Smartphone,
-  },
-  {
-    name: "Windows / macOS",
-    href: "https://happ.su/main/downloads",
-    Icon: MonitorSmartphone,
-  },
-];
 
 export default async function VpnPage() {
   const supabase = await createClient();
@@ -61,14 +37,19 @@ export default async function VpnPage() {
   if (!sub) {
     return (
       <div className="space-y-4">
-        <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">
-          Моя подписка
-        </h1>
+        <header className="space-y-1.5">
+          <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">
+            Подписка
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            Активной подписки нет.
+          </p>
+        </header>
         <Card>
           <CardContent className="p-6 text-center">
-            <p className="text-muted-foreground">
-              Активной подписки нет. Загляни на странице тарифов.
-            </p>
+            <Button asChild>
+              <Link href="/app/vpn/change-plan">Выбрать тариф</Link>
+            </Button>
           </CardContent>
         </Card>
       </div>
@@ -81,8 +62,6 @@ export default async function VpnPage() {
     .eq("subscription_id", sub.id)
     .order("last_seen", { ascending: false })) as { data: Device[] | null };
 
-  const subUrl = `https://sub.mimzo.ru/sub/${sub.sub_token}`;
-  const happUrl = `happ://add/${Buffer.from(subUrl).toString("base64url")}`;
   const trafficUsedBytes = sub.traffic_used_bytes;
   const trafficTotalBytes = sub.traffic_gb * 1024 ** 3;
   const trafficPercent =
@@ -92,24 +71,32 @@ export default async function VpnPage() {
 
   return (
     <div className="space-y-8">
-      <header className="space-y-2">
+      <header className="space-y-1.5">
         <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">
-          Моя подписка
+          Подписка
         </h1>
         <p className="text-sm text-muted-foreground">
-          Управление VPN: ссылка-подписка, устройства, обновление лимитов.
+          Тариф, лимиты и устройства.
         </p>
       </header>
 
-      {/* Subscription summary */}
+      {/* Tariff summary */}
       <Card>
-        <CardHeader>
-          <CardDescription>
-            {sub.is_trial ? "Демо-доступ" : "Активный тариф"}
-          </CardDescription>
-          <CardTitle className="text-2xl">
-            {sub.is_trial ? "Демо" : "Базовый"}
-          </CardTitle>
+        <CardHeader className="flex flex-row items-start justify-between space-y-0 gap-3">
+          <div className="space-y-1">
+            <CardDescription>
+              {sub.is_trial ? "Демо-доступ" : "Активный тариф"}
+            </CardDescription>
+            <CardTitle className="text-2xl">
+              {sub.is_trial ? "Демо" : "Базовый"}
+            </CardTitle>
+          </div>
+          <Button asChild variant="outline" size="sm">
+            <Link href="/app/vpn/change-plan">
+              <Sparkles className="size-4" />
+              Сменить тариф
+            </Link>
+          </Button>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="space-y-2">
@@ -149,43 +136,6 @@ export default async function VpnPage() {
                 подключённых / лимит
               </div>
             </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Subscription URL + connect */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Подключение в Happ</CardTitle>
-          <CardDescription>
-            Скачай Happ → импортируй подписку → выбери сервер → подключайся.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-5">
-          <div className="flex flex-col sm:flex-row gap-2">
-            <code className="flex-1 overflow-x-auto rounded-lg border border-border bg-card/60 px-3 py-2.5 text-xs font-mono text-muted-foreground">
-              {subUrl}
-            </code>
-            <CopyButton value={subUrl} />
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Button asChild>
-              <a href={happUrl}>Открыть в Happ</a>
-            </Button>
-            {HAPP_LINKS.map(({ name, href, Icon }) => (
-              <Button
-                key={name}
-                asChild
-                variant="outline"
-                size="sm"
-              >
-                <a href={href} target="_blank" rel="noreferrer">
-                  <Icon />
-                  {name}
-                  <ExternalLink />
-                </a>
-              </Button>
-            ))}
           </div>
         </CardContent>
       </Card>
@@ -232,10 +182,15 @@ export default async function VpnPage() {
               ))}
             </ul>
           ) : (
-            <p className="text-sm text-muted-foreground">
-              Пока ни одного устройства. Подключи VPN — оно появится здесь
-              автоматически.
-            </p>
+            <div className="space-y-3 py-4">
+              <p className="text-sm text-muted-foreground">
+                Пока ни одного устройства. Подключи VPN — оно появится здесь
+                автоматически.
+              </p>
+              <Button asChild size="sm" variant="outline">
+                <Link href="/app/connect">К подключению</Link>
+              </Button>
+            </div>
           )}
         </CardContent>
       </Card>

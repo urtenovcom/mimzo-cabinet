@@ -1,11 +1,14 @@
+import Link from "next/link";
 import {
-  Calendar,
-  Database,
   ChevronRight,
+  Database,
+  Plug,
+  ShieldCheck,
   Smartphone,
   Sparkles,
+  Users,
+  Wallet,
 } from "lucide-react";
-import Link from "next/link";
 
 import {
   Card,
@@ -18,8 +21,16 @@ import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { CopyButton } from "@/components/ui/copy-button";
 import { createClient } from "@/lib/supabase/server";
-import { daysUntil, formatBytes, formatDate, formatDaysLeft } from "@/lib/format";
-import type { Subscription } from "@/types/db";
+import {
+  daysUntil,
+  formatBytes,
+  formatDate,
+  formatDaysLeft,
+  formatRub,
+} from "@/lib/format";
+import type { Profile, Subscription } from "@/types/db";
+
+const APP_ORIGIN = process.env.NEXT_PUBLIC_APP_URL ?? "https://app.mimzo.ru";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -27,7 +38,6 @@ export default async function DashboardPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Fetch active subscription (the one expiring the latest)
   const { data: sub } = (await supabase
     .from("subscriptions")
     .select("*")
@@ -35,6 +45,12 @@ export default async function DashboardPage() {
     .order("expires_at", { ascending: false })
     .limit(1)
     .maybeSingle()) as { data: Subscription | null };
+
+  const { data: profile } = (await supabase
+    .from("profiles")
+    .select("balance_rub")
+    .eq("id", user!.id)
+    .maybeSingle()) as { data: Pick<Profile, "balance_rub"> | null };
 
   const { count: devicesUsed } = sub
     ? await supabase
@@ -44,17 +60,9 @@ export default async function DashboardPage() {
     : { count: 0 };
 
   const name = user?.email?.split("@")[0] ?? "друг";
-  const subUrl = sub
-    ? `https://sub.mimzo.ru/sub/${sub.sub_token}`
-    : "";
-  const trafficUsedBytes = sub?.traffic_used_bytes ?? 0;
-  const trafficTotalBytes = sub ? sub.traffic_gb * 1024 ** 3 : 0;
-  const trafficPercent =
-    trafficTotalBytes > 0 ? (trafficUsedBytes / trafficTotalBytes) * 100 : 0;
-  const daysLeft = sub ? Math.max(0, daysUntil(sub.expires_at)) : 0;
-  const planTitle = sub?.is_trial ? "Демо" : "Базовый";
-  const unlimited = (sub?.traffic_gb ?? 0) >= 9999;
+  const refLink = `${APP_ORIGIN}/register?ref=${user!.id.slice(0, 8)}`;
 
+  // ── No active subscription state ──────────────────────────
   if (!sub) {
     return (
       <div className="space-y-6">
@@ -67,7 +75,7 @@ export default async function DashboardPage() {
               У тебя пока нет активной подписки. Выбери тариф чтобы начать.
             </p>
             <Button asChild>
-              <Link href="/app/plans">
+              <Link href="/app/vpn/change-plan">
                 Выбрать тариф
                 <ChevronRight />
               </Link>
@@ -78,33 +86,47 @@ export default async function DashboardPage() {
     );
   }
 
+  const trafficUsedBytes = sub.traffic_used_bytes;
+  const trafficTotalBytes = sub.traffic_gb * 1024 ** 3;
+  const trafficPercent =
+    trafficTotalBytes > 0 ? (trafficUsedBytes / trafficTotalBytes) * 100 : 0;
+  const unlimited = sub.traffic_gb >= 9999;
+  const daysLeft = Math.max(0, daysUntil(sub.expires_at));
+  const planTitle = sub.is_trial ? "Демо-доступ" : "Базовый";
+  const isExpiringSoon = daysLeft <= 3;
+
   return (
-    <div className="space-y-8">
-      <header className="space-y-2">
+    <div className="space-y-6 sm:space-y-8">
+      <header className="space-y-1.5">
         <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight capitalize">
           Привет, {name}
         </h1>
         <p className="text-sm text-muted-foreground">
-          Здесь главное о твоей подписке. Управление — слева в меню.
+          Здесь главное о твоём VPN на одном экране.
         </p>
       </header>
 
-      {sub.is_trial && (
-        <Card className="border-primary/30 bg-primary/5">
-          <CardContent className="flex flex-col sm:flex-row sm:items-center gap-3 p-5">
-            <div className="size-10 shrink-0 rounded-lg bg-primary/15 flex items-center justify-center text-primary">
+      {/* Critical banner — only when something needs attention */}
+      {(sub.is_trial || isExpiringSoon) && (
+        <Card className="border-primary/40 bg-primary/[0.08]">
+          <CardContent className="flex flex-col sm:flex-row sm:items-center gap-3 p-4 sm:p-5">
+            <div className="size-10 shrink-0 rounded-lg bg-primary/15 grid place-items-center text-primary">
               <Sparkles className="size-5" />
             </div>
-            <div className="flex-1">
+            <div className="flex-1 min-w-0">
               <div className="font-medium">
-                У тебя демо-доступ — {formatDaysLeft(sub.expires_at)} осталось
+                {sub.is_trial
+                  ? `Демо-доступ — ${formatDaysLeft(sub.expires_at)} осталось`
+                  : `Подписка истекает через ${formatDaysLeft(sub.expires_at)}`}
               </div>
               <div className="text-sm text-muted-foreground">
-                Чтобы продолжить без перерывов — выбери тариф заранее.
+                {sub.is_trial
+                  ? "Выбери тариф заранее чтобы не остаться без VPN."
+                  : "Продли подписку чтобы продолжить пользоваться."}
               </div>
             </div>
-            <Button asChild>
-              <Link href="/app/plans">
+            <Button asChild className="shrink-0">
+              <Link href="/app/vpn/change-plan">
                 Выбрать тариф
                 <ChevronRight />
               </Link>
@@ -113,20 +135,22 @@ export default async function DashboardPage() {
         </Card>
       )}
 
+      {/* HERO STATUS — primary glanceable card */}
       <Card>
-        <CardHeader className="flex-row items-start justify-between space-y-0 gap-4">
+        <CardHeader className="flex flex-row items-start justify-between space-y-0 gap-3">
           <div className="space-y-1">
-            <CardDescription>Текущий тариф</CardDescription>
+            <CardDescription>Подписка активна</CardDescription>
             <CardTitle className="text-2xl">{planTitle}</CardTitle>
           </div>
-          <Button asChild variant="outline" size="sm">
+          <Button asChild variant="outline" size="sm" className="shrink-0">
             <Link href="/app/vpn">
-              Открыть VPN
+              Подробнее
               <ChevronRight />
             </Link>
           </Button>
         </CardHeader>
         <CardContent className="space-y-6">
+          {/* Traffic bar */}
           <div className="space-y-2">
             <div className="flex items-center justify-between text-sm">
               <span className="text-muted-foreground inline-flex items-center gap-1.5">
@@ -146,48 +170,84 @@ export default async function DashboardPage() {
             {!unlimited && <Progress value={trafficPercent} />}
           </div>
 
-          <div className="grid sm:grid-cols-2 gap-4">
-            <Stat
-              icon={<Calendar className="size-4" />}
-              label="Истекает"
-              value={formatDaysLeft(sub.expires_at)}
-              hint={formatDate(sub.expires_at)}
-            />
-            <Stat
+          {/* Two small stats — devices + days */}
+          <div className="grid grid-cols-2 gap-3">
+            <MiniStat
               icon={<Smartphone className="size-4" />}
               label="Устройства"
               value={`${devicesUsed ?? 0} / ${sub.devices_limit}`}
-              hint="используется / лимит"
+            />
+            <MiniStat
+              icon={<ShieldCheck className="size-4" />}
+              label="Дней"
+              value={`${daysLeft}`}
+              hint={formatDate(sub.expires_at)}
             />
           </div>
+
+          {/* Primary action — connect */}
+          <Button asChild className="w-full">
+            <Link href="/app/connect">
+              <Plug />
+              Открыть подключение
+            </Link>
+          </Button>
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Ссылка-подписка для Happ</CardTitle>
-          <CardDescription>
-            Вставь её в Happ → «Добавить подписку». VPN настроится автоматически.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col sm:flex-row gap-2">
-            <code className="flex-1 overflow-x-auto rounded-lg border border-border bg-card/60 px-3 py-2.5 text-xs font-mono text-muted-foreground">
-              {subUrl}
+      {/* Secondary row — balance + referral teaser */}
+      <div className="grid sm:grid-cols-2 gap-4 sm:gap-6">
+        <Card>
+          <CardHeader className="pb-3">
+            <CardDescription className="inline-flex items-center gap-1.5">
+              <Wallet className="size-3.5" />
+              Баланс
+            </CardDescription>
+            <CardTitle className="text-2xl tabular-nums">
+              {formatRub(profile?.balance_rub ?? 0)}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Button asChild variant="outline" size="sm" className="w-full">
+              <Link href="/app/billing">
+                Финансы
+                <ChevronRight />
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-3">
+            <CardDescription className="inline-flex items-center gap-1.5">
+              <Users className="size-3.5" />
+              Рефералы
+            </CardDescription>
+            <CardTitle className="text-base font-medium leading-snug">
+              Приглашай друзей — 30% с их оплат
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <code className="block truncate rounded-md border border-border bg-card/60 px-2.5 py-1.5 text-xs font-mono text-muted-foreground">
+              {refLink}
             </code>
-            <CopyButton value={subUrl} />
-          </div>
-        </CardContent>
-      </Card>
-
-      <p className="text-xs text-muted-foreground">
-        Дней до истечения: {daysLeft}
-      </p>
+            <div className="flex gap-2">
+              <CopyButton value={refLink} />
+              <Button asChild variant="ghost" size="sm" className="flex-1">
+                <Link href="/app/referrals">
+                  Подробнее
+                  <ChevronRight />
+                </Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
 
-function Stat({
+function MiniStat({
   icon,
   label,
   value,
@@ -199,13 +259,17 @@ function Stat({
   hint?: string;
 }) {
   return (
-    <div className="rounded-xl border border-border/60 bg-card/60 p-4 space-y-1">
-      <div className="text-xs text-muted-foreground inline-flex items-center gap-1.5">
+    <div className="rounded-xl border border-border/60 bg-card/40 p-3.5 space-y-0.5">
+      <div className="text-[11px] text-muted-foreground inline-flex items-center gap-1.5">
         {icon}
         {label}
       </div>
-      <div className="text-xl font-semibold tabular-nums">{value}</div>
-      {hint && <div className="text-xs text-muted-foreground">{hint}</div>}
+      <div className="text-lg font-semibold tabular-nums">{value}</div>
+      {hint && (
+        <div className="text-[10px] text-muted-foreground/80 truncate">
+          {hint}
+        </div>
+      )}
     </div>
   );
 }

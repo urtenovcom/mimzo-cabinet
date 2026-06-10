@@ -1,44 +1,42 @@
 import {
   Home,
-  Shield,
-  Gem,
+  Plug,
+  ShieldCheck,
   Wallet,
+  MoreHorizontal,
   Users,
-  MessageSquare,
+  LifeBuoy,
   Settings,
   type LucideIcon,
 } from "lucide-react";
 
 export interface NavItem {
-  label: string;
   href: string;
-  icon: LucideIcon;
-  badge?: string;
+  label: string;
+  Icon: LucideIcon;
+  /** Match exact (e.g. dashboard root) vs prefix (e.g. /app/vpn covers nested) */
+  match?: "prefix" | "exact";
 }
 
-export interface NavSection {
-  label?: string;
-  items: NavItem[];
-}
-
-export const NAV_SECTIONS: NavSection[] = [
-  {
-    items: [
-      { label: "Главная", href: "/app", icon: Home },
-      { label: "Моя подписка", href: "/app/vpn", icon: Shield },
-      { label: "Тарифы", href: "/app/plans", icon: Gem },
-      { label: "Финансы", href: "/app/billing", icon: Wallet },
-    ],
-  },
-  {
-    label: "Сообщество",
-    items: [
-      { label: "Рефералы", href: "/app/referrals", icon: Users },
-      { label: "Поддержка", href: "/app/support", icon: MessageSquare },
-    ],
-  },
-  {
-    label: "Аккаунт",
-    items: [{ label: "Настройки", href: "/app/settings", icon: Settings }],
-  },
+export const PRIMARY_NAV: NavItem[] = [
+  { href: "/app", label: "Главная", Icon: Home, match: "exact" },
+  { href: "/app/connect", label: "Подключение", Icon: Plug, match: "prefix" },
+  { href: "/app/vpn", label: "Подписка", Icon: ShieldCheck, match: "prefix" },
+  { href: "/app/billing", label: "Финансы", Icon: Wallet, match: "prefix" },
 ];
+
+export const MORE_NAV: NavItem[] = [
+  { href: "/app/referrals", label: "Рефералы", Icon: Users, match: "prefix" },
+  { href: "/app/support", label: "Поддержка", Icon: LifeBuoy, match: "prefix" },
+  { href: "/app/settings", label: "Настройки", Icon: Settings, match: "prefix" },
+];
+
+export const MORE_TRIGGER = {
+  label: "Ещё",
+  Icon: MoreHorizontal,
+};
+
+export function isActive(current: string, item: NavItem): boolean {
+  if (item.match === "exact") return current === item.href;
+  return current === item.href || current.startsWith(item.href + "/");
+}

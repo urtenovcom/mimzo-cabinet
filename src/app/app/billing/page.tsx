@@ -73,7 +73,7 @@ export default async function BillingPage() {
         </CardHeader>
         <CardContent>
           <Button asChild variant="outline">
-            <Link href="/app/plans">Оплатить тариф</Link>
+            <Link href="/app/vpn/change-plan">Сменить тариф</Link>
           </Button>
         </CardContent>
       </Card>
