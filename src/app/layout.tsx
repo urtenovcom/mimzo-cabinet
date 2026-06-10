@@ -16,9 +16,7 @@ export const metadata: Metadata = {
   title: "Mimzo — Личный кабинет",
   description:
     "VPN-сервис, который работает в России даже когда другие не работают.",
-  icons: {
-    icon: [{ url: "/favicon.svg", type: "image/svg+xml" }],
-  },
+  // Icons auto-detected from src/app/icon.tsx (dynamic PNG) + icon.svg (vector)
 };
 
 export default function RootLayout({

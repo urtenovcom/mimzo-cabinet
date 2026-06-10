@@ -2,7 +2,6 @@ import Link from "next/link";
 import {
   ChevronRight,
   Database,
-  Plug,
   ShieldCheck,
   Smartphone,
   Sparkles,
@@ -142,7 +141,7 @@ export default async function DashboardPage() {
             <CardDescription>Подписка активна</CardDescription>
             <CardTitle className="text-2xl">{planTitle}</CardTitle>
           </div>
-          <Button asChild variant="outline" size="sm" className="shrink-0">
+          <Button asChild size="sm" className="shrink-0">
             <Link href="/app/vpn">
               Подробнее
               <ChevronRight />
@@ -185,13 +184,6 @@ export default async function DashboardPage() {
             />
           </div>
 
-          {/* Primary action */}
-          <Button asChild className="w-full">
-            <Link href="/app/vpn">
-              <Plug />
-              К подписке
-            </Link>
-          </Button>
         </CardContent>
       </Card>
 

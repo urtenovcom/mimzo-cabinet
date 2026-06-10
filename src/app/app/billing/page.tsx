@@ -1,5 +1,4 @@
-import Link from "next/link";
-import { CreditCard, ReceiptText, Sparkles } from "lucide-react";
+import { ReceiptText, Sparkles } from "lucide-react";
 
 import {
   Card,
@@ -8,14 +7,12 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { createClient } from "@/lib/supabase/server";
 import { formatDateShort, formatRub } from "@/lib/format";
 import type { Payment, Profile } from "@/types/db";
 
 import { PromoForm } from "./promo-form";
+import { TopupBlock } from "./topup-block";
 
 const PAYMENT_PURPOSE_LABEL: Record<string, string> = {
   plan: "Покупка тарифа",
@@ -72,9 +69,7 @@ export default async function BillingPage() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <Button asChild variant="outline">
-            <Link href="/app/vpn/change-plan">Сменить тариф</Link>
-          </Button>
+          <TopupBlock />
         </CardContent>
       </Card>
 
@@ -91,27 +86,6 @@ export default async function BillingPage() {
         </CardHeader>
         <CardContent>
           <PromoForm />
-        </CardContent>
-      </Card>
-
-      {/* Top-up methods */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg inline-flex items-center gap-2">
-            <CreditCard className="size-4" />
-            Пополнение баланса
-          </CardTitle>
-          <CardDescription>
-            Сейчас оплата отключена — подключим после модерации ЮKassa.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="grid sm:grid-cols-2 gap-3">
-          <Method
-            title="ЮKassa"
-            description="Карта МИР, СБП, СберPay"
-            disabled
-          />
-          <Method title="Криптовалюта" description="USDT TRC-20" disabled />
         </CardContent>
       </Card>
 
@@ -163,26 +137,5 @@ export default async function BillingPage() {
         </CardContent>
       </Card>
     </div>
-  );
-}
-
-function Method({
-  title,
-  description,
-  disabled,
-}: {
-  title: string;
-  description: string;
-  disabled?: boolean;
-}) {
-  return (
-    <button
-      type="button"
-      disabled={disabled}
-      className="text-left rounded-xl border border-border/60 bg-card/40 p-4 transition-colors hover:bg-card/60 disabled:opacity-50 disabled:cursor-not-allowed"
-    >
-      <div className="font-medium">{title}</div>
-      <div className="text-xs text-muted-foreground">{description}</div>
-    </button>
   );
 }
