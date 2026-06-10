@@ -24,6 +24,8 @@ import {
 } from "@/lib/format";
 import type { Subscription } from "@/types/db";
 
+import { buildHappDeeplink } from "@/lib/happ";
+
 import { InstructionsBlock } from "./instructions";
 
 export default async function VpnPage() {
@@ -74,8 +76,8 @@ export default async function VpnPage() {
   const unlimited = sub.traffic_gb >= 9999;
 
   const subUrl = `https://sub.mimzo.ru/sub/${sub.sub_token}`;
-  // Happ expects STANDARD base64 of the subscription URL (not base64url).
-  const happUrl = `happ://add/${Buffer.from(subUrl).toString("base64")}`;
+  // One-tap import via Happ's encrypted crypt5 deeplink (hides the URL).
+  const happUrl = await buildHappDeeplink(subUrl);
 
   return (
     <div className="space-y-6 sm:space-y-8">
