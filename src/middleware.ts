@@ -2,10 +2,11 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 // Two faces of the same Next.js app:
-//   mimzo.ru        → marketing / auth (login, register, forgot-password, reset-password)
+//   mimzo.ru        → marketing / auth (login, register, forgot, reset)
 //   app.mimzo.ru    → authed cabinet (/app/*)
-// Cookies are scoped to `.mimzo.ru` (set in supabase server / browser clients)
-// so the Supabase session survives the cross-subdomain redirect after login.
+// Cookies are scoped to `.mimzo.ru`. If a mobile browser drops the
+// cookie at the subdomain boundary we degrade gracefully — the worst
+// case is the user lands on /login again, not an infinite redirect.
 const AUTH_HOST = "mimzo.ru";
 const APP_HOST = "app.mimzo.ru";
 
@@ -50,22 +51,27 @@ export async function middleware(request: NextRequest) {
     url.pathname === "/reset-password";
   const isAppPath = url.pathname.startsWith("/app");
 
-  // 1) On marketing host: app paths bounce to app subdomain
+  // Marketing host serving an app path → bounce to app subdomain.
   if (host === AUTH_HOST && isAppPath) {
-    return NextResponse.redirect(`https://${APP_HOST}${url.pathname}${url.search}`);
+    return NextResponse.redirect(
+      `https://${APP_HOST}${url.pathname}${url.search}`,
+    );
   }
 
-  // 2) On app host: auth paths bounce to marketing host
+  // App host serving an auth path → bounce to marketing host.
   if (host === APP_HOST && isAuthPath) {
-    return NextResponse.redirect(`https://${AUTH_HOST}${url.pathname}${url.search}`);
+    return NextResponse.redirect(
+      `https://${AUTH_HOST}${url.pathname}${url.search}`,
+    );
   }
 
-  // 3) Standard auth gating (works on both hosts now)
+  // App pages require an authed user.
+  // The reverse rule (auth path while logged in → /app) is intentionally
+  // omitted: it forms an infinite loop if cookies don't propagate across
+  // subdomains (some mobile browsers). Users that visit /login while
+  // already authed will just see the login form — annoying, not broken.
   if (isAppPath && !user) {
     return NextResponse.redirect(`https://${AUTH_HOST}/login`);
-  }
-  if (isAuthPath && user) {
-    return NextResponse.redirect(`https://${APP_HOST}/app`);
   }
 
   return response;
