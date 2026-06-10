@@ -221,11 +221,10 @@ export default async function VpnPage() {
                       {[
                         d.os,
                         d.client_app,
-                        new Date(d.last_seen).toLocaleString("ru-RU", {
-                          day: "2-digit",
-                          month: "2-digit",
-                          hour: "2-digit",
-                          minute: "2-digit",
+                        new Date(d.last_seen).toLocaleDateString("ru-RU", {
+                          day: "numeric",
+                          month: "long",
+                          year: "numeric",
                         }),
                       ]
                         .filter(Boolean)
