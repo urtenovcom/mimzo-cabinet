@@ -63,7 +63,7 @@ function RegisterForm() {
       email,
       password,
       options: {
-        emailRedirectTo: `${window.location.origin}/app`,
+        emailRedirectTo: "https://app.mimzo.ru/app",
         data: refCode ? { ref_code: refCode } : undefined,
       },
     });

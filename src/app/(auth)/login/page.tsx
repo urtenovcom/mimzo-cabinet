@@ -40,6 +40,11 @@ export default function LoginPage() {
       setLoading(false);
       return;
     }
+    // After login on mimzo.ru → bounce to authed cabinet at app.mimzo.ru
+    if (typeof window !== "undefined" && window.location.hostname === "mimzo.ru") {
+      window.location.assign("https://app.mimzo.ru/app");
+      return;
+    }
     router.push("/app");
     router.refresh();
   }
