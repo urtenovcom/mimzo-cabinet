@@ -185,11 +185,11 @@ export default async function DashboardPage() {
             />
           </div>
 
-          {/* Primary action — connect */}
+          {/* Primary action */}
           <Button asChild className="w-full">
-            <Link href="/app/connect">
+            <Link href="/app/vpn">
               <Plug />
-              Открыть подключение
+              К подписке
             </Link>
           </Button>
         </CardContent>

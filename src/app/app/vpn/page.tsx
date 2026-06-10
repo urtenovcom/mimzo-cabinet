@@ -1,5 +1,10 @@
 import Link from "next/link";
-import { Database, Sparkles } from "lucide-react";
+import {
+  ChevronRight,
+  Database,
+  Smartphone,
+  Sparkles,
+} from "lucide-react";
 
 import {
   Card,
@@ -10,15 +15,16 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import { CopyButton } from "@/components/ui/copy-button";
 import { createClient } from "@/lib/supabase/server";
 import {
   formatBytes,
   formatDate,
   formatDaysLeft,
 } from "@/lib/format";
-import type { Device, Subscription } from "@/types/db";
+import type { Subscription } from "@/types/db";
 
-import { RemoveAllDevicesButton, RemoveDeviceButton } from "./device-actions";
+import { InstructionsBlock } from "./instructions";
 
 export default async function VpnPage() {
   const supabase = await createClient();
@@ -56,31 +62,32 @@ export default async function VpnPage() {
     );
   }
 
-  const { data: devices } = (await supabase
+  const { count: devicesUsed } = await supabase
     .from("devices")
-    .select("*")
-    .eq("subscription_id", sub.id)
-    .order("last_seen", { ascending: false })) as { data: Device[] | null };
+    .select("*", { count: "exact", head: true })
+    .eq("subscription_id", sub.id);
 
   const trafficUsedBytes = sub.traffic_used_bytes;
   const trafficTotalBytes = sub.traffic_gb * 1024 ** 3;
   const trafficPercent =
     trafficTotalBytes > 0 ? (trafficUsedBytes / trafficTotalBytes) * 100 : 0;
   const unlimited = sub.traffic_gb >= 9999;
-  const usedDevices = devices?.length ?? 0;
+
+  const subUrl = `https://sub.mimzo.ru/sub/${sub.sub_token}`;
+  const happUrl = `happ://add/${Buffer.from(subUrl).toString("base64url")}`;
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 sm:space-y-8">
       <header className="space-y-1.5">
         <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">
           Подписка
         </h1>
         <p className="text-sm text-muted-foreground">
-          Тариф, лимиты и устройства.
+          Тариф, ссылка для Happ, устройства и инструкции.
         </p>
       </header>
 
-      {/* Tariff summary */}
+      {/* Tariff + traffic + days + devices (with link) */}
       <Card>
         <CardHeader className="flex flex-row items-start justify-between space-y-0 gap-3">
           <div className="space-y-1">
@@ -117,7 +124,8 @@ export default async function VpnPage() {
             </div>
             {!unlimited && <Progress value={trafficPercent} />}
           </div>
-          <div className="grid sm:grid-cols-2 gap-4 text-sm">
+
+          <div className="grid sm:grid-cols-2 gap-3 text-sm">
             <div className="rounded-xl border border-border/60 bg-card/40 p-4">
               <div className="text-xs text-muted-foreground">Истекает</div>
               <div className="text-lg font-semibold">
@@ -127,71 +135,50 @@ export default async function VpnPage() {
                 {formatDate(sub.expires_at)}
               </div>
             </div>
-            <div className="rounded-xl border border-border/60 bg-card/40 p-4">
-              <div className="text-xs text-muted-foreground">Устройства</div>
-              <div className="text-lg font-semibold">
-                {usedDevices} / {sub.devices_limit}
+
+            {/* Devices stat + link to dedicated page */}
+            <Link
+              href="/app/vpn/devices"
+              className="group rounded-xl border border-border/60 bg-card/40 p-4 transition-colors hover:bg-card/70 flex items-center justify-between gap-3"
+            >
+              <div>
+                <div className="text-xs text-muted-foreground inline-flex items-center gap-1.5">
+                  <Smartphone className="size-3.5" />
+                  Устройства
+                </div>
+                <div className="text-lg font-semibold tabular-nums">
+                  {devicesUsed ?? 0} / {sub.devices_limit}
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  открыть список
+                </div>
               </div>
-              <div className="text-xs text-muted-foreground">
-                подключённых / лимит
-              </div>
-            </div>
+              <ChevronRight className="size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+            </Link>
           </div>
         </CardContent>
       </Card>
 
-      {/* Devices list */}
+      {/* Sub URL + Happ button + collapsible instructions */}
       <Card>
-        <CardHeader className="flex flex-row items-start justify-between space-y-0 gap-3">
-          <CardTitle className="text-lg">Подключённые устройства</CardTitle>
-          {devices && devices.length > 0 && <RemoveAllDevicesButton />}
+        <CardHeader>
+          <CardTitle className="text-lg">Подключение</CardTitle>
+          <CardDescription>
+            Скопируй ссылку и добавь её в Happ — VPN настроится сам.
+          </CardDescription>
         </CardHeader>
-        <CardContent>
-          {devices && devices.length > 0 ? (
-            <ul className="divide-y divide-border/60">
-              {devices.map((d) => (
-                <li
-                  key={d.id}
-                  className="py-3 flex items-center justify-between gap-3"
-                >
-                  <div className="min-w-0 flex-1 space-y-0.5">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-medium truncate">
-                        {d.display_name ?? d.client_app ?? "Устройство"}
-                      </span>
-                      <span className="font-mono text-[10px] uppercase tracking-wide text-muted-foreground bg-muted/60 px-1.5 py-0.5 rounded">
-                        {d.device_hash.slice(-8)}
-                      </span>
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      {[
-                        d.os,
-                        d.client_app,
-                        new Date(d.last_seen).toLocaleDateString("ru-RU", {
-                          day: "numeric",
-                          month: "long",
-                          year: "numeric",
-                        }),
-                      ]
-                        .filter(Boolean)
-                        .join(" · ") || "Неизвестный клиент"}
-                    </div>
-                  </div>
-                  <RemoveDeviceButton deviceId={d.id} />
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <div className="space-y-3 py-4">
-              <p className="text-sm text-muted-foreground">
-                Пока ни одного устройства. Подключи VPN — оно появится здесь
-                автоматически.
-              </p>
-              <Button asChild size="sm" variant="outline">
-                <Link href="/app/connect">К подключению</Link>
-              </Button>
-            </div>
-          )}
+        <CardContent className="space-y-4">
+          <div className="flex flex-col sm:flex-row gap-2">
+            <code className="flex-1 overflow-x-auto rounded-lg border border-border bg-card/60 px-3 py-2.5 text-xs font-mono text-muted-foreground">
+              {subUrl}
+            </code>
+            <CopyButton value={subUrl} />
+          </div>
+          <Button asChild className="w-full sm:w-auto">
+            <a href={happUrl}>Открыть в Happ</a>
+          </Button>
+
+          <InstructionsBlock />
         </CardContent>
       </Card>
     </div>

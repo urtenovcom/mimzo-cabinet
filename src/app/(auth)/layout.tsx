@@ -20,7 +20,7 @@ export default function AuthLayout({
       </main>
 
       <footer className="px-6 py-6 text-center text-xs text-muted-foreground">
-        © {new Date().getFullYear()} Mimzo · честный VPN для России
+        © {new Date().getFullYear()} Mimzo
       </footer>
     </div>
   );

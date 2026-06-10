@@ -1,10 +1,9 @@
 import {
   Home,
-  Plug,
   ShieldCheck,
   Wallet,
-  MoreHorizontal,
   Users,
+  MoreHorizontal,
   LifeBuoy,
   Settings,
   type LucideIcon,
@@ -20,14 +19,13 @@ export interface NavItem {
 
 export const PRIMARY_NAV: NavItem[] = [
   { href: "/app", label: "Главная", Icon: Home, match: "exact" },
-  { href: "/app/connect", label: "Подключение", Icon: Plug, match: "prefix" },
   { href: "/app/vpn", label: "Подписка", Icon: ShieldCheck, match: "prefix" },
   { href: "/app/billing", label: "Финансы", Icon: Wallet, match: "prefix" },
+  { href: "/app/referrals", label: "Рефералы", Icon: Users, match: "prefix" },
   { href: "/app/more", label: "Ещё", Icon: MoreHorizontal, match: "prefix" },
 ];
 
 export const MORE_NAV: NavItem[] = [
-  { href: "/app/referrals", label: "Рефералы", Icon: Users, match: "prefix" },
   { href: "/app/support", label: "Поддержка", Icon: LifeBuoy, match: "prefix" },
   { href: "/app/settings", label: "Настройки", Icon: Settings, match: "prefix" },
 ];
