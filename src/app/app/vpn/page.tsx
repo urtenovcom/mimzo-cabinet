@@ -25,7 +25,6 @@ import {
 import type { Device, Subscription } from "@/types/db";
 
 import { RemoveAllDevicesButton, RemoveDeviceButton } from "./device-actions";
-import { RotateSubButton } from "./rotate-button";
 
 const HAPP_LINKS: Array<{ name: string; href: string; Icon: typeof Apple }> = [
   {
@@ -156,14 +155,11 @@ export default async function VpnPage() {
 
       {/* Subscription URL + connect */}
       <Card>
-        <CardHeader className="flex flex-row items-start justify-between space-y-0 gap-3">
-          <div className="space-y-1">
-            <CardTitle className="text-lg">Подключение в Happ</CardTitle>
-            <CardDescription>
-              Скачай Happ → импортируй подписку → выбери сервер → подключайся.
-            </CardDescription>
-          </div>
-          <RotateSubButton />
+        <CardHeader>
+          <CardTitle className="text-lg">Подключение в Happ</CardTitle>
+          <CardDescription>
+            Скачай Happ → импортируй подписку → выбери сервер → подключайся.
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-5">
           <div className="flex flex-col sm:flex-row gap-2">
