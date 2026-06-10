@@ -27,7 +27,6 @@ export const PRIMARY_NAV: NavItem[] = [
 
 export const MORE_NAV: NavItem[] = [
   { href: "/app/support", label: "Поддержка", Icon: LifeBuoy, match: "prefix" },
-  { href: "/app/settings", label: "Настройки", Icon: Settings, match: "prefix" },
 ];
 
 export function isActive(current: string, item: NavItem): boolean {

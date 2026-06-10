@@ -3,7 +3,6 @@ import Link from "next/link";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -63,13 +62,7 @@ export default async function DevicesPage() {
 
       <Card>
         <CardHeader className="flex flex-row items-start justify-between space-y-0 gap-3">
-          <div className="space-y-1">
-            <CardTitle className="text-lg">Подключённые устройства</CardTitle>
-            <CardDescription>
-              «Отключить» удаляет UUID устройства из xray — повторное подключение требует
-              переимпорта подписки в Happ.
-            </CardDescription>
-          </div>
+          <CardTitle className="text-lg">Подключённые устройства</CardTitle>
           {devices && devices.length > 0 && <RemoveAllDevicesButton />}
         </CardHeader>
         <CardContent>
