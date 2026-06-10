@@ -197,12 +197,7 @@ export default async function VpnPage() {
       {/* Devices list */}
       <Card>
         <CardHeader className="flex flex-row items-start justify-between space-y-0 gap-3">
-          <div className="space-y-1">
-            <CardTitle className="text-lg">Подключённые устройства</CardTitle>
-            <CardDescription>
-              «Отключить» убирает устройство из списка — но оно автоматически вернётся в течение ~1 часа, если продолжит пользоваться VPN. Чтобы реально отрезать доступ — нажми «Перевыпустить подписку» (старая ссылка перестанет работать).
-            </CardDescription>
-          </div>
+          <CardTitle className="text-lg">Подключённые устройства</CardTitle>
           {devices && devices.length > 0 && <RemoveAllDevicesButton />}
         </CardHeader>
         <CardContent>
