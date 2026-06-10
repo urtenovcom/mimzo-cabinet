@@ -53,6 +53,8 @@ export interface Device {
   hwid: string | null;
   ua_raw: string | null;
   app_version: string | null;
+  marzban_username: string | null;
+  last_online_at: string | null;
   first_seen: string;
   last_seen: string;
 }

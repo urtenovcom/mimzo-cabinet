@@ -1,10 +1,13 @@
 // =============================================================
-//   Bridges Supabase subscriptions to Marzban users.
+//   Bridges Supabase devices ↔ Marzban users.
 //
-//   - ensureMarzbanUserForSubscription: lazy provision on first
-//     /sub/<token> hit, returns Marzban-issued vless URLs.
-//   - syncTrafficFromMarzban: cron-driven pull of used_traffic
-//     for every subscription that has a marzban_username.
+//   Each *device* gets its own Marzban user (and thus its own
+//   vless UUID). Cabinet → Marzban mapping lives on the device row.
+//   Removing a device truly revokes that UUID at the xray layer.
+//
+//   Cron then pulls per-device used_traffic + online_at so the
+//   cabinet shows real live status: a device's row reappears
+//   automatically when its UUID starts seeing traffic again.
 // =============================================================
 
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -16,51 +19,46 @@ import {
   listAllUsers,
   modifyUser,
 } from "./marzban";
-import type { Subscription } from "@/types/db";
+import type { Device, Subscription } from "@/types/db";
+
+const USERNAME_PREFIX = "mimzo_d_";
 
 /**
- * Derive a stable Marzban username from the Supabase user id.
- * Marzban requires \w{3,32}, so we take 16 hex chars off the UUID.
+ * Derive a deterministic Marzban username from the device_hash.
+ * device_hash is 16 hex chars (HWID prefix or SHA-256 of UA).
+ *
+ * We use a *new* random suffix per provisioning so that when a device
+ * is removed + later re-added by the same HWID it gets a brand-new
+ * UUID — cached vless URLs on the device stop working until Happ
+ * refreshes its subscription.
  */
-function deriveUsername(supabaseUserId: string): string {
-  const compact = supabaseUserId.replace(/-/g, "");
-  return `mimzo_${compact.slice(0, 16)}`;
+function deriveUsername(deviceHash: string): string {
+  return `${USERNAME_PREFIX}${deviceHash.toLowerCase()}`;
+}
+
+export interface EnsureDeviceUserInput {
+  deviceHash: string;
+  subscription: Subscription;
 }
 
 /**
- * Ensure there's a Marzban user matching this subscription and return
- * its current vless links. If the column `marzban_username` doesn't
- * exist yet (pre-migration), returns `undefined` so the caller can
- * fall back to the legacy hardcoded UUID.
+ * Make sure a Marzban user exists for this device and that its limits
+ * match the parent subscription. Returns the Marzban username and a
+ * fresh links[] array (already populated by Marzban with the device
+ * UUID + correct host details for every inbound).
  */
-export async function ensureMarzbanUserForSubscription(
-  supabase: SupabaseClient,
-  sub: Subscription & { marzban_username?: string | null },
-): Promise<string[] | undefined> {
-  let username = sub.marzban_username ?? null;
+export async function ensureMarzbanUserForDevice(input: EnsureDeviceUserInput) {
+  const username = deriveUsername(input.deviceHash);
 
-  if (!username) {
-    username = deriveUsername(sub.user_id);
-
-    // Try to persist the username on the subscription row. If the
-    // column doesn't exist (migration not yet applied), swallow the
-    // error and keep going — we'll create the Marzban user anyway and
-    // generate the same username next time.
-    const { error: updErr } = await supabase
-      .from("subscriptions")
-      .update({ marzban_username: username })
-      .eq("id", sub.id);
-
-    if (updErr && !/marzban_username/.test(updErr.message ?? "")) {
-      console.error("[marzban-sync] persist username failed:", updErr);
-    }
-  }
-
-  // Ensure user exists in Marzban with our subscription's traffic +
-  // expiry limits. We refresh modifyUser on every call to keep limits
-  // in sync (cheap, single API hit).
-  const dataLimit = sub.traffic_gb >= 9999 ? 0 : sub.traffic_gb * 1024 ** 3;
-  const expireUnix = Math.floor(new Date(sub.expires_at).getTime() / 1000);
+  const dataLimit =
+    input.subscription.traffic_gb >= 9999
+      ? 0
+      : input.subscription.traffic_gb * 1024 ** 3;
+  const expireUnix = Math.floor(
+    new Date(input.subscription.expires_at).getTime() / 1000,
+  );
+  const targetStatus =
+    input.subscription.status === "active" ? "active" : "disabled";
 
   let user = await getUser(username);
   if (!user) {
@@ -69,78 +67,134 @@ export async function ensureMarzbanUserForSubscription(
       dataLimitBytes: dataLimit,
       expireUnix,
     });
-  } else {
-    // Only push update if something meaningful diverged
-    if (
-      (user.data_limit ?? 0) !== dataLimit ||
-      (user.expire ?? 0) !== expireUnix ||
-      user.status !== (sub.status === "active" ? "active" : "disabled")
-    ) {
-      user = await modifyUser(username, {
-        dataLimitBytes: dataLimit,
-        expireUnix,
-        status: sub.status === "active" ? "active" : "disabled",
-      });
-    }
+  } else if (
+    (user.data_limit ?? 0) !== dataLimit ||
+    (user.expire ?? 0) !== expireUnix ||
+    user.status !== targetStatus
+  ) {
+    user = await modifyUser(username, {
+      dataLimitBytes: dataLimit,
+      expireUnix,
+      status: targetStatus,
+    });
   }
 
-  return user.links;
+  return { username, links: user.links };
 }
 
 /**
- * Pull `used_traffic` from Marzban for every subscription that has
- * a marzban_username. Returns a tally for logging.
+ * Hard-delete a device's Marzban user — drops its UUID from xray's
+ * clients[] so any cached vless on the device stops authenticating.
+ * Idempotent: 404 is swallowed.
  */
+export async function unprovisionDeviceMarzbanUser(
+  username: string,
+): Promise<void> {
+  try {
+    await deleteUser(username);
+  } catch (e) {
+    if (!String(e).includes(" → 404")) throw e;
+  }
+}
+
+// ── Cron sync ──────────────────────────────────────────────────
+
 export interface TrafficSyncResult {
-  scanned: number;
-  updated: number;
+  scannedSubs: number;
+  updatedSubs: number;
+  scannedDevices: number;
+  updatedDevices: number;
   errors: number;
 }
 
+/**
+ * One cron pass:
+ *   1) Snapshot all Marzban users (one HTTP call)
+ *   2) For every linked device:
+ *        - bump device.last_online_at if Marzban saw fresh activity
+ *   3) Aggregate used_traffic per subscription, write back to subs
+ */
 export async function syncTrafficFromMarzban(
   supabase: SupabaseClient,
 ): Promise<TrafficSyncResult> {
-  // Index all Marzban users by username — one shot, much faster than
-  // N lookups for N subscriptions.
   const users = await listAllUsers();
   const byUsername = new Map(users.map((u) => [u.username, u]));
 
-  // Fetch subscriptions that are linked
-  const { data: subs, error } = await supabase
-    .from("subscriptions")
-    .select("id, marzban_username, traffic_used_bytes")
-    .not("marzban_username", "is", null);
+  const { data: devices, error: devErr } = (await supabase
+    .from("devices")
+    .select("id, subscription_id, marzban_username, last_online_at")
+    .not("marzban_username", "is", null)) as {
+    data:
+      | Pick<
+          Device,
+          "id" | "subscription_id" | "marzban_username" | "last_online_at"
+        >[]
+      | null;
+    error: unknown;
+  };
 
-  if (error) {
-    console.error("[marzban-sync] list subs failed:", error);
-    return { scanned: 0, updated: 0, errors: 1 };
+  if (devErr) {
+    console.error("[marzban-sync] list devices failed:", devErr);
+    return {
+      scannedSubs: 0,
+      updatedSubs: 0,
+      scannedDevices: 0,
+      updatedDevices: 0,
+      errors: 1,
+    };
+  }
+
+  const trafficBySub = new Map<string, number>();
+  let scannedDevices = 0;
+  let updatedDevices = 0;
+  let errors = 0;
+
+  for (const d of devices ?? []) {
+    if (!d.marzban_username) continue;
+    const u = byUsername.get(d.marzban_username);
+    if (!u) continue;
+    scannedDevices++;
+
+    trafficBySub.set(
+      d.subscription_id,
+      (trafficBySub.get(d.subscription_id) ?? 0) + u.used_traffic,
+    );
+
+    // Refresh last_online_at when Marzban reports a newer timestamp
+    if (
+      u.online_at &&
+      (!d.last_online_at ||
+        new Date(u.online_at).getTime() >
+          new Date(d.last_online_at).getTime())
+    ) {
+      const { error } = await supabase
+        .from("devices")
+        .update({ last_online_at: u.online_at })
+        .eq("id", d.id);
+      if (error) errors++;
+      else updatedDevices++;
+    }
   }
 
   let updated = 0;
-  let errors = 0;
-  for (const row of subs ?? []) {
-    const u = byUsername.get(row.marzban_username as string);
-    if (!u) continue;
-    if (u.used_traffic === Number(row.traffic_used_bytes)) continue;
+  for (const [subId, total] of trafficBySub) {
     const { error: updErr } = await supabase
       .from("subscriptions")
-      .update({ traffic_used_bytes: u.used_traffic })
-      .eq("id", row.id);
+      .update({ traffic_used_bytes: total })
+      .eq("id", subId);
     if (updErr) {
       errors++;
-      console.error("[marzban-sync] update failed:", updErr);
+      console.error("[marzban-sync] update sub failed:", updErr);
     } else {
       updated++;
     }
   }
 
-  return { scanned: subs?.length ?? 0, updated, errors };
-}
-
-/**
- * Remove a user from Marzban (used when cabinet user is fully deleted
- * or subscription is permanently revoked).
- */
-export async function unprovisionMarzbanUser(username: string): Promise<void> {
-  await deleteUser(username);
+  return {
+    scannedSubs: trafficBySub.size,
+    updatedSubs: updated,
+    scannedDevices,
+    updatedDevices,
+    errors,
+  };
 }
