@@ -32,7 +32,7 @@ export function UserMenu({ email }: UserMenuProps) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger className="group flex items-center gap-2 rounded-full p-1 pr-2 hover:bg-secondary/60 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">
-        <div className="size-8 rounded-full bg-gradient-to-br from-violet-500 to-blue-500 flex items-center justify-center text-sm font-semibold text-background">
+        <div className="size-8 rounded-full bg-gradient-to-br from-[#41FEAA] to-emerald-500 flex items-center justify-center text-sm font-semibold text-background">
           {initial}
         </div>
         <span className="hidden sm:inline text-sm font-medium truncate max-w-[160px]">
