@@ -1,4 +1,5 @@
-import { ReceiptText, Sparkles } from "lucide-react";
+import Link from "next/link";
+import { CreditCard, ReceiptText, Sparkles } from "lucide-react";
 
 import {
   Card,
@@ -7,12 +8,12 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/server";
 import { formatDateShort, formatRub } from "@/lib/format";
 import type { Payment, Profile } from "@/types/db";
 
 import { PromoForm } from "./promo-form";
-import { TopupBlock } from "./topup-block";
 
 const PAYMENT_PURPOSE_LABEL: Record<string, string> = {
   plan: "Покупка тарифа",
@@ -69,7 +70,12 @@ export default async function BillingPage() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <TopupBlock />
+          <Button asChild>
+            <Link href="/app/billing/topup">
+              <CreditCard />
+              Пополнить баланс
+            </Link>
+          </Button>
         </CardContent>
       </Card>
 

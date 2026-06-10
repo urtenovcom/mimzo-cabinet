@@ -159,7 +159,7 @@ export default async function VpnPage() {
         </CardContent>
       </Card>
 
-      {/* Sub URL + Happ button + collapsible instructions */}
+      {/* Sub URL + Happ button */}
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">Подключение</CardTitle>
@@ -177,10 +177,11 @@ export default async function VpnPage() {
           <Button asChild className="w-full sm:w-auto">
             <a href={happUrl}>Открыть в Happ</a>
           </Button>
-
-          <InstructionsBlock />
         </CardContent>
       </Card>
+
+      {/* Instructions — separate block below the connection card */}
+      <InstructionsBlock />
     </div>
   );
 }

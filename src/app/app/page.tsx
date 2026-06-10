@@ -171,11 +171,21 @@ export default async function DashboardPage() {
 
           {/* Two small stats — devices + days */}
           <div className="grid grid-cols-2 gap-3">
-            <MiniStat
-              icon={<Smartphone className="size-4" />}
-              label="Устройства"
-              value={`${devicesUsed ?? 0} / ${sub.devices_limit}`}
-            />
+            <Link
+              href="/app/vpn/devices"
+              className="group rounded-xl border border-border/60 bg-card/40 p-3.5 transition-colors hover:bg-card/70 flex items-center justify-between gap-2"
+            >
+              <div className="space-y-0.5">
+                <div className="text-[11px] text-muted-foreground inline-flex items-center gap-1.5">
+                  <Smartphone className="size-4" />
+                  Устройства
+                </div>
+                <div className="text-lg font-semibold tabular-nums">
+                  {devicesUsed ?? 0} / {sub.devices_limit}
+                </div>
+              </div>
+              <ChevronRight className="size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+            </Link>
             <MiniStat
               icon={<ShieldCheck className="size-4" />}
               label="Дней"
@@ -216,7 +226,7 @@ export default async function DashboardPage() {
               Рефералы
             </CardDescription>
             <CardTitle className="text-base font-medium leading-snug">
-              Приглашай друзей — 30% с их оплат
+              Приглашай друзей — 10% с их оплат
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
