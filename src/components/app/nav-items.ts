@@ -3,9 +3,7 @@ import {
   ShieldCheck,
   Wallet,
   Users,
-  MoreHorizontal,
   LifeBuoy,
-  Settings,
   type LucideIcon,
 } from "lucide-react";
 
@@ -22,10 +20,6 @@ export const PRIMARY_NAV: NavItem[] = [
   { href: "/app/vpn", label: "Подписка", Icon: ShieldCheck, match: "prefix" },
   { href: "/app/billing", label: "Финансы", Icon: Wallet, match: "prefix" },
   { href: "/app/referrals", label: "Рефералы", Icon: Users, match: "prefix" },
-  { href: "/app/more", label: "Ещё", Icon: MoreHorizontal, match: "prefix" },
-];
-
-export const MORE_NAV: NavItem[] = [
   { href: "/app/support", label: "Поддержка", Icon: LifeBuoy, match: "prefix" },
 ];
 
