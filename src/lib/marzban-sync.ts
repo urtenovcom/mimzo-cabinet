@@ -79,7 +79,26 @@ export async function ensureMarzbanUserForDevice(input: EnsureDeviceUserInput) {
     });
   }
 
-  return { username, links: user.links };
+  return { username, links: orderLinks(user.links) };
+}
+
+// Marzban renders inbounds in DB insertion order; we want a fixed
+// product-facing order regardless of when an inbound was added.
+// Priority — Auto, FI, DE, NL, anything else last.
+const ORDER_KEYWORDS = ["Авто", "Финляндия", "Германия", "Нидерланды"];
+
+function orderLinks(links: string[]): string[] {
+  const indexOf = (link: string) => {
+    // The remark sits after `#` in the vless URL, percent-encoded.
+    const hashIdx = link.indexOf("#");
+    const remark =
+      hashIdx >= 0 ? decodeURIComponent(link.slice(hashIdx + 1)) : link;
+    for (let i = 0; i < ORDER_KEYWORDS.length; i++) {
+      if (remark.includes(ORDER_KEYWORDS[i])) return i;
+    }
+    return ORDER_KEYWORDS.length;
+  };
+  return [...links].sort((a, b) => indexOf(a) - indexOf(b));
 }
 
 /**
