@@ -165,6 +165,21 @@ export async function deleteUser(username: string): Promise<void> {
 }
 
 /**
+ * Reset a user's used_traffic to zero on Marzban side.
+ * Called when a billing-cycle reset hits.
+ */
+export async function resetUserTraffic(username: string): Promise<void> {
+  try {
+    await marzbanRequest<unknown>(
+      `/api/user/${encodeURIComponent(username)}/reset`,
+      { method: "POST" },
+    );
+  } catch (e) {
+    if (!String(e).includes(" → 404")) throw e;
+  }
+}
+
+/**
  * Returns the raw links array. Each entry is a fully-formed vless://
  * URL with the per-user UUID, ready to embed in a subscription.
  */

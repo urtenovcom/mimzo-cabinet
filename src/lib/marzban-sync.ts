@@ -18,6 +18,7 @@ import {
   getUser,
   listAllUsers,
   modifyUser,
+  resetUserTraffic,
 } from "./marzban";
 import type { Device, Subscription } from "@/types/db";
 
@@ -123,19 +124,97 @@ export interface TrafficSyncResult {
   updatedSubs: number;
   scannedDevices: number;
   updatedDevices: number;
+  resetSubs: number;
   errors: number;
 }
 
 /**
+ * Monthly traffic reset — runs BEFORE we sync usage from Marzban so
+ * the just-reset subs don't immediately get last cycle's counter
+ * back. For each subscription where:
+ *   - next_traffic_reset_at <= now()
+ *   - expires_at > now()   (subscription is still paid for)
+ * We:
+ *   1) Reset every device's Marzban user via POST /api/user/{u}/reset
+ *   2) Set subscription.traffic_used_bytes = 0
+ *   3) Advance next_traffic_reset_at by 30 days
+ */
+async function rolloverDueSubscriptions(
+  supabase: SupabaseClient,
+): Promise<{ reset: number; errors: number }> {
+  const nowIso = new Date().toISOString();
+
+  const { data: due, error } = await supabase
+    .from("subscriptions")
+    .select("id, next_traffic_reset_at, expires_at")
+    .lte("next_traffic_reset_at", nowIso)
+    .gt("expires_at", nowIso);
+
+  if (error) {
+    console.error("[traffic-reset] list due failed:", error);
+    return { reset: 0, errors: 1 };
+  }
+  if (!due || due.length === 0) return { reset: 0, errors: 0 };
+
+  let reset = 0;
+  let errors = 0;
+
+  for (const sub of due) {
+    // Each device for this sub has its own Marzban user — wipe each
+    const { data: devs } = await supabase
+      .from("devices")
+      .select("marzban_username")
+      .eq("subscription_id", sub.id)
+      .not("marzban_username", "is", null);
+
+    for (const d of devs ?? []) {
+      if (!d.marzban_username) continue;
+      try {
+        await resetUserTraffic(d.marzban_username);
+      } catch (e) {
+        console.error("[traffic-reset] marzban reset failed:", e);
+        errors++;
+      }
+    }
+
+    // Advance the cycle by 30 days. Use the previously stored anchor
+    // (not now()) so the reset day stays aligned with purchase day
+    // even if cron lagged.
+    const nextAnchor = new Date(
+      new Date(sub.next_traffic_reset_at as string).getTime() +
+        30 * 86400_000,
+    );
+
+    const { error: updErr } = await supabase
+      .from("subscriptions")
+      .update({
+        traffic_used_bytes: 0,
+        next_traffic_reset_at: nextAnchor.toISOString(),
+      })
+      .eq("id", sub.id);
+
+    if (updErr) {
+      errors++;
+      console.error("[traffic-reset] update sub failed:", updErr);
+    } else {
+      reset++;
+    }
+  }
+
+  return { reset, errors };
+}
+
+/**
  * One cron pass:
+ *   0) Roll over any subscriptions whose monthly anchor is due
  *   1) Snapshot all Marzban users (one HTTP call)
- *   2) For every linked device:
- *        - bump device.last_online_at if Marzban saw fresh activity
- *   3) Aggregate used_traffic per subscription, write back to subs
+ *   2) For every linked device: bump last_online_at if newer in Marzban
+ *   3) Aggregate used_traffic per subscription, write back
  */
 export async function syncTrafficFromMarzban(
   supabase: SupabaseClient,
 ): Promise<TrafficSyncResult> {
+  const rollover = await rolloverDueSubscriptions(supabase);
   const users = await listAllUsers();
   const byUsername = new Map(users.map((u) => [u.username, u]));
 
@@ -159,7 +238,8 @@ export async function syncTrafficFromMarzban(
       updatedSubs: 0,
       scannedDevices: 0,
       updatedDevices: 0,
-      errors: 1,
+      resetSubs: rollover.reset,
+      errors: 1 + rollover.errors,
     };
   }
 
@@ -214,6 +294,7 @@ export async function syncTrafficFromMarzban(
     updatedSubs: updated,
     scannedDevices,
     updatedDevices,
-    errors,
+    resetSubs: rollover.reset,
+    errors: errors + rollover.errors,
   };
 }

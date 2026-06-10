@@ -109,16 +109,28 @@ export async function redeemPromo(
       daysAdded * 86400_000,
   );
 
+  // If the sub was expired or expiring imminently, anchor the next
+  // traffic reset 30 days from now. Otherwise keep the existing anchor
+  // so the user's billing cycle stays predictable.
+  const subExpiredMs = new Date(sub.expires_at).getTime();
+  const nextResetAt =
+    subExpiredMs <= Date.now()
+      ? new Date(Date.now() + 30 * 86400_000).toISOString()
+      : undefined;
+
   // Persist subscription update
+  const update: Record<string, unknown> = {
+    devices_limit: newDevicesLimit,
+    traffic_gb: newTrafficGb,
+    expires_at: newExpiresAt.toISOString(),
+    is_trial: false,
+    status: "active",
+  };
+  if (nextResetAt) update.next_traffic_reset_at = nextResetAt;
+
   const { error: updErr } = await admin
     .from("subscriptions")
-    .update({
-      devices_limit: newDevicesLimit,
-      traffic_gb: newTrafficGb,
-      expires_at: newExpiresAt.toISOString(),
-      is_trial: false,
-      status: "active",
-    })
+    .update(update)
     .eq("id", sub.id);
   if (updErr) {
     console.error("[promo] sub update failed:", updErr);

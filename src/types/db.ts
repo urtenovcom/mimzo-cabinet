@@ -38,6 +38,7 @@ export interface Subscription {
   traffic_gb: number;
   traffic_used_bytes: number;
   expires_at: string;
+  next_traffic_reset_at: string | null;
   marzban_username: string | null;
   created_at: string;
   updated_at: string;
