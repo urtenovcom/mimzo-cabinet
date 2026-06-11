@@ -31,7 +31,7 @@ export default async function AppLayout({
             aria-label="Mimzo · на главную"
             className="inline-flex"
           >
-            <Logo size={32} />
+            <Logo size={42} />
           </Link>
 
           <div className="ml-auto flex items-center gap-1">

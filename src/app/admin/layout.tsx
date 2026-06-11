@@ -35,7 +35,7 @@ export default async function AdminLayout({
       {/* Sidebar */}
       <aside className="hidden md:flex md:w-60 md:flex-col border-r border-border/60 bg-card/30 sticky top-0 h-screen">
         <div className="h-16 flex items-center gap-2 px-5 border-b border-border/60">
-          <Logo size={26} />
+          <Logo size={34} />
           <span className="text-xs font-semibold uppercase tracking-wider text-primary">
             Admin
           </span>
@@ -69,7 +69,7 @@ export default async function AdminLayout({
       {/* Mobile top nav */}
       <div className="flex-1 flex flex-col min-w-0">
         <header className="md:hidden h-14 flex items-center gap-2 px-4 border-b border-border/60 bg-background/80 backdrop-blur sticky top-0 z-30">
-          <Logo size={24} />
+          <Logo size={30} />
           <span className="text-xs font-semibold uppercase tracking-wider text-primary">
             Admin
           </span>

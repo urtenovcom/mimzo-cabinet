@@ -11,7 +11,7 @@ export default function AuthLayout({
     <div className="relative min-h-screen flex flex-col">
       <header className="px-6 py-5 sm:px-10">
         <Link href="/" className="inline-flex">
-          <Logo />
+          <Logo size={40} />
         </Link>
       </header>
 
