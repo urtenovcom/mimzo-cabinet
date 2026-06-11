@@ -1,4 +1,4 @@
-import { Server, Globe } from "lucide-react";
+import { Server, Globe, Cpu, MemoryStick, HardDrive, Gauge } from "lucide-react";
 
 import {
   getNodes,
@@ -22,20 +22,50 @@ function paidBadge(date: string | null) {
   return { txt: d, cls: "text-foreground/80" };
 }
 
-function withUnit(val: string | null, unit: string): string | null {
+function num(val: string | null): string | null {
   if (!val) return null;
-  return /^[\d.,]+$/.test(val.trim()) ? `${val.trim()} ${unit}` : val;
+  return val.trim() || null;
 }
 
-function specs(s?: ServerMeta): string {
-  if (!s) return "—";
-  const parts = [
-    withUnit(s.cpu, "vCPU"),
-    withUnit(s.ram, "ГБ"),
-    withUnit(s.disk, "ГБ"),
-    withUnit(s.bandwidth, "Гбит"),
-  ].filter(Boolean);
-  return parts.length ? parts.join(" · ") : "—";
+// Bandwidth: "0.25" Гбит reads nicer as "250 Мбит".
+function fmtBandwidth(val: string | null): string | null {
+  const v = num(val);
+  if (!v) return null;
+  if (/^[\d.,]+$/.test(v)) {
+    const n = parseFloat(v.replace(",", "."));
+    if (!Number.isNaN(n)) {
+      return n < 1 ? `${Math.round(n * 1000)} Мбит` : `${v} Гбит`;
+    }
+  }
+  return v;
+}
+
+function SpecsRow({ s }: { s?: ServerMeta }) {
+  if (!s) return <span className="text-sm text-muted-foreground">—</span>;
+  const items: { Icon: typeof Cpu; val: string; title: string }[] = [];
+  const cpu = num(s.cpu);
+  const ram = num(s.ram);
+  const disk = num(s.disk);
+  const bw = fmtBandwidth(s.bandwidth);
+  if (cpu) items.push({ Icon: Cpu, val: /[a-zа-я]/i.test(cpu) ? cpu : `${cpu} vCPU`, title: "Процессор" });
+  if (ram) items.push({ Icon: MemoryStick, val: /[a-zа-я]/i.test(ram) ? ram : `${ram} ГБ`, title: "Оперативная память" });
+  if (disk) items.push({ Icon: HardDrive, val: /[a-zа-я]/i.test(disk) ? disk : `${disk} ГБ`, title: "Диск" });
+  if (bw) items.push({ Icon: Gauge, val: bw, title: "Полоса" });
+  if (!items.length) return <span className="text-sm text-muted-foreground">—</span>;
+  return (
+    <div className="flex flex-wrap gap-x-3 gap-y-1">
+      {items.map((it, i) => (
+        <span
+          key={i}
+          title={it.title}
+          className="inline-flex items-center gap-1 text-xs text-muted-foreground tabular-nums"
+        >
+          <it.Icon className="size-3 shrink-0 opacity-70" />
+          {it.val}
+        </span>
+      ))}
+    </div>
+  );
 }
 
 function trafficLine(usedBytes: number | null, limitGb: number | null) {
@@ -52,25 +82,47 @@ function trafficLine(usedBytes: number | null, limitGb: number | null) {
   };
 }
 
-const FLAGS: { kw: string; flag: string }[] = [
-  { kw: "финлянд", flag: "🇫🇮" },
-  { kw: "герман", flag: "🇩🇪" },
-  { kw: "нидерланд", flag: "🇳🇱" },
-  { kw: "польш", flag: "🇵🇱" },
-  { kw: "гданьск", flag: "🇵🇱" },
-  { kw: "болгар", flag: "🇧🇬" },
-  { kw: "софия", flag: "🇧🇬" },
-  { kw: "росси", flag: "🇷🇺" },
-  { kw: "москв", flag: "🇷🇺" },
+const COUNTRY: { kw: string; code: string }[] = [
+  { kw: "финлянд", code: "fi" },
+  { kw: "герман", code: "de" },
+  { kw: "нидерланд", code: "nl" },
+  { kw: "польш", code: "pl" },
+  { kw: "гданьск", code: "pl" },
+  { kw: "болгар", code: "bg" },
+  { kw: "софия", code: "bg" },
+  { kw: "росси", code: "ru" },
+  { kw: "москв", code: "ru" },
 ];
 
-function flagFor(...sources: (string | null | undefined)[]): string {
+function countryCode(...sources: (string | null | undefined)[]): string | null {
   const hay = sources.filter(Boolean).join(" ").toLowerCase();
-  return FLAGS.find((f) => hay.includes(f.kw))?.flag ?? "🏳️";
+  return COUNTRY.find((c) => hay.includes(c.kw))?.code ?? null;
+}
+
+// Strip a leading regional-indicator flag emoji from a remark (it
+// renders as bare letters like "FI" on Windows — we draw a real flag).
+function stripFlagEmoji(s: string): string {
+  return s.replace(/^[\u{1F1E6}-\u{1F1FF}]{2}\s*/u, "").trim();
+}
+
+function Flag({ code }: { code: string | null }) {
+  if (!code) {
+    return <Globe className="size-4 shrink-0 text-muted-foreground" />;
+  }
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={`https://flagcdn.com/${code}.svg`}
+      alt=""
+      width={20}
+      height={15}
+      className="w-5 h-[15px] rounded-[2px] object-cover shrink-0 ring-1 ring-white/10"
+    />
+  );
 }
 
 // shared column template (desktop)
-const COLS = "md:grid-cols-[1.5fr_1fr_1.4fr_1.3fr_1fr_auto]";
+const COLS = "md:grid-cols-[minmax(0,1.6fr)_minmax(0,0.9fr)_minmax(0,1.7fr)_minmax(0,1fr)_minmax(0,0.8fr)_auto]";
 
 function HeadRow({ extra }: { extra?: string }) {
   return (
@@ -186,7 +238,7 @@ export default async function AdminServers() {
                     <span className="text-sm text-foreground/80">{meta?.hosting ?? "—"}</span>
                   </Cell>
                   <Cell label="Характеристики">
-                    <span className="text-sm text-foreground/80">{specs(meta)}</span>
+                    <SpecsRow s={meta} />
                   </Cell>
                   <Cell label="Трафик">
                     <span className={`text-sm ${tl.cls}`}>{tl.txt}</span>
@@ -220,7 +272,8 @@ export default async function AdminServers() {
               const meta = byTag.get(h.inboundTag);
               const pb = paidBadge(meta?.paid_until ?? null);
               const limitGb = meta?.traffic_limit_gb ?? null;
-              const flag = flagFor(meta?.location, h.remark);
+              const code = countryCode(meta?.location, h.remark);
+              const cleanName = stripFlagEmoji(h.remark);
               const editable: EditableServer = {
                 id: meta?.id ?? null,
                 ip: meta?.ip ?? h.address,
@@ -243,11 +296,9 @@ export default async function AdminServers() {
                 >
                   <Cell label="">
                     <div className="flex items-center gap-2">
-                      <span className="text-lg leading-none shrink-0" aria-hidden>
-                        {flag}
-                      </span>
+                      <Flag code={code} />
                       <span className={`font-medium truncate ${h.is_disabled ? "text-muted-foreground line-through" : ""}`}>
-                        {h.remark}
+                        {cleanName}
                       </span>
                     </div>
                     {meta?.ip && (
@@ -258,7 +309,7 @@ export default async function AdminServers() {
                     <span className="text-sm text-foreground/80">{meta?.hosting ?? "—"}</span>
                   </Cell>
                   <Cell label="Характеристики">
-                    <span className="text-sm text-foreground/80">{specs(meta)}</span>
+                    <SpecsRow s={meta} />
                   </Cell>
                   <Cell label="Трафик">
                     <span className="text-sm text-foreground/80">
