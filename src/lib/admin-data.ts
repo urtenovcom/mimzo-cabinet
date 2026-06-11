@@ -421,6 +421,136 @@ export async function getReferralStats(): Promise<ReferralRow[]> {
     .sort((a, b) => b.invitedCount - a.invitedCount);
 }
 
+// ── Monitoring ────────────────────────────────────────────────
+
+export interface ServerLoad {
+  ip: string;
+  name: string;
+  cpu: number | null;
+  mem: number | null;
+  load1: number | null;
+  conns: number | null;
+  rxBps: number | null;
+  txBps: number | null;
+  ts: string | null;
+}
+
+export interface MonitoringData {
+  current: {
+    online: number;
+    activeDevices: number;
+    bwInBps: number;
+    bwOutBps: number;
+  } | null;
+  peakToday: { online: number; ts: string } | null;
+  peakWeek: { online: number; ts: string } | null;
+  series: { ts: string; online: number }[];
+  servers: ServerLoad[];
+  atPeak: { ts: string; online: number; servers: ServerLoad[] } | null;
+}
+
+function latestByIp(rows: Record<string, unknown>[]): Map<string, Record<string, unknown>> {
+  const m = new Map<string, Record<string, unknown>>();
+  for (const r of rows) {
+    const ip = String(r.ip);
+    if (!m.has(ip)) m.set(ip, r); // rows are ts desc → first is latest
+  }
+  return m;
+}
+
+export async function getMonitoring(): Promise<MonitoringData> {
+  const db = createAdminClient();
+  const now = Date.now();
+  const dayStart = new Date();
+  dayStart.setHours(0, 0, 0, 0);
+  const weekAgo = new Date(now - 7 * 86400_000).toISOString();
+  const h24 = new Date(now - 24 * 3600_000).toISOString();
+  const min3 = new Date(now - 180_000).toISOString();
+
+  const [reg, cur, pToday, pWeek, ser, recent] = await Promise.all([
+    getServerRegistry().catch(() => [] as ServerMeta[]),
+    db.from("metrics").select("*").order("ts", { ascending: false }).limit(1),
+    db.from("metrics").select("ts,online_users").gte("ts", dayStart.toISOString()).order("online_users", { ascending: false }).limit(1),
+    db.from("metrics").select("ts,online_users").gte("ts", weekAgo).order("online_users", { ascending: false }).limit(1),
+    db.from("metrics").select("ts,online_users").gte("ts", h24).order("ts", { ascending: true }),
+    db.from("server_metrics").select("*").gte("ts", min3).order("ts", { ascending: false }),
+  ]);
+
+  const nameByIp = new Map(reg.map((r) => [r.ip, r.name]));
+  const c = cur.data?.[0] as
+    | { online_users: number; active_devices: number; bw_in_bps: number; bw_out_bps: number }
+    | undefined;
+
+  // downsample 24h series to ~120 points
+  const raw = (ser.data ?? []) as { ts: string; online_users: number }[];
+  const step = Math.max(1, Math.ceil(raw.length / 120));
+  const series = raw
+    .filter((_, i) => i % step === 0)
+    .map((r) => ({ ts: r.ts, online: r.online_users ?? 0 }));
+
+  const toLoad = (r: Record<string, unknown>): ServerLoad => ({
+    ip: String(r.ip),
+    name: nameByIp.get(String(r.ip)) ?? String(r.ip),
+    cpu: r.cpu_pct as number | null,
+    mem: r.mem_pct as number | null,
+    load1: r.load1 as number | null,
+    conns: r.conns as number | null,
+    rxBps: r.net_rx_bps as number | null,
+    txBps: r.net_tx_bps as number | null,
+    ts: r.ts as string | null,
+  });
+
+  const servers = [...latestByIp((recent.data ?? []) as Record<string, unknown>[]).values()]
+    .map(toLoad)
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  // load at the all-time (week) peak
+  let atPeak: MonitoringData["atPeak"] = null;
+  const peak = pWeek.data?.[0] as { ts: string; online_users: number } | undefined;
+  if (peak) {
+    const lo = new Date(new Date(peak.ts).getTime() - 60_000).toISOString();
+    const hi = new Date(new Date(peak.ts).getTime() + 60_000).toISOString();
+    const { data: near } = await db
+      .from("server_metrics")
+      .select("*")
+      .gte("ts", lo)
+      .lte("ts", hi)
+      .order("ts", { ascending: false });
+    atPeak = {
+      ts: peak.ts,
+      online: peak.online_users,
+      servers: [...latestByIp((near ?? []) as Record<string, unknown>[]).values()]
+        .map(toLoad)
+        .sort((a, b) => a.name.localeCompare(b.name)),
+    };
+  }
+
+  return {
+    current: c
+      ? {
+          online: c.online_users ?? 0,
+          activeDevices: c.active_devices ?? 0,
+          bwInBps: c.bw_in_bps ?? 0,
+          bwOutBps: c.bw_out_bps ?? 0,
+        }
+      : null,
+    peakToday: pToday.data?.[0]
+      ? { online: pToday.data[0].online_users, ts: pToday.data[0].ts }
+      : null,
+    peakWeek: peak ? { online: peak.online_users, ts: peak.ts } : null,
+    series,
+    servers,
+    atPeak,
+  };
+}
+
+export const fmtBps = (bps: number | null) => {
+  if (bps == null) return "—";
+  if (bps >= 125_000_000) return `${(bps / 125_000_000).toFixed(1)} Гбит/с`;
+  if (bps >= 125_000) return `${(bps / 125_000).toFixed(0)} Мбит/с`;
+  return `${(bps / 1024).toFixed(0)} КБ/с`;
+};
+
 // ── Marzban nodes + hosts ─────────────────────────────────────
 
 export interface MarzNode {

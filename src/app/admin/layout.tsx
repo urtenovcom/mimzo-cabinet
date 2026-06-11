@@ -7,6 +7,7 @@ import {
   Server,
   Wallet,
   Share2,
+  Activity,
   ExternalLink,
 } from "lucide-react";
 
@@ -18,6 +19,7 @@ const NAV = [
   { href: "/admin/users", label: "Пользователи", Icon: Users },
   { href: "/admin/promos", label: "Промокоды", Icon: Ticket },
   { href: "/admin/servers", label: "Серверы", Icon: Server },
+  { href: "/admin/monitoring", label: "Мониторинг", Icon: Activity },
   { href: "/admin/finance", label: "Финансы", Icon: Wallet },
   { href: "/admin/referrals", label: "Рефералы", Icon: Share2 },
 ];
