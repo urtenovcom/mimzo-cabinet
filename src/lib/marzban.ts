@@ -99,6 +99,7 @@ export const DEFAULT_INBOUNDS = [
   "VLESS-WS-NL",
   "VLESS-WS-NL2",
   "VLESS-WS-PL",
+  "VLESS-WS-CH",
   "VLESS-WS-AUTO",
 ];
 
