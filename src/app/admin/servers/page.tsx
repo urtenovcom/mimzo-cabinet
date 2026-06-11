@@ -10,6 +10,7 @@ import {
 import { formatBytes } from "@/lib/format";
 import { HostToggle } from "./host-toggle";
 import { ServerEdit, type EditableServer } from "./server-edit";
+import { PayInline } from "./pay-inline";
 
 export const dynamic = "force-dynamic";
 
@@ -124,7 +125,7 @@ function Flag({ code }: { code: string | null }) {
 // shared column template (desktop)
 const COLS = "md:grid-cols-[minmax(0,1.6fr)_minmax(0,0.9fr)_minmax(0,1.7fr)_minmax(0,1fr)_minmax(0,0.8fr)_auto]";
 
-function HeadRow({ extra }: { extra?: string }) {
+function HeadRow() {
   return (
     <div
       className={`hidden md:grid ${COLS} gap-4 px-5 py-2.5 text-[11px] uppercase tracking-wide text-muted-foreground border-b border-border/60`}
@@ -132,16 +133,24 @@ function HeadRow({ extra }: { extra?: string }) {
       <span>Название</span>
       <span>Хостинг</span>
       <span>Характеристики</span>
-      <span>Трафик</span>
-      <span>Оплата</span>
-      <span className="text-right">{extra ?? ""}</span>
+      <span className="text-center">Трафик</span>
+      <span className="text-center">Оплата</span>
+      <span />
     </div>
   );
 }
 
-function Cell({ label, children }: { label: string; children: React.ReactNode }) {
+function Cell({
+  label,
+  center,
+  children,
+}: {
+  label: string;
+  center?: boolean;
+  children: React.ReactNode;
+}) {
   return (
-    <div className="min-w-0">
+    <div className={`min-w-0 ${center ? "md:text-center" : ""}`}>
       <span className="md:hidden text-[11px] uppercase tracking-wide text-muted-foreground mr-2">
         {label}
       </span>
@@ -240,11 +249,14 @@ export default async function AdminServers() {
                   <Cell label="Характеристики">
                     <SpecsRow s={meta} />
                   </Cell>
-                  <Cell label="Трафик">
+                  <Cell label="Трафик" center>
                     <span className={`text-sm ${tl.cls}`}>{tl.txt}</span>
                   </Cell>
-                  <Cell label="Оплата">
-                    <span className={`text-sm ${pb.cls}`}>{pb.txt}</span>
+                  <Cell label="Оплата" center>
+                    <span className="inline-flex items-center gap-1.5">
+                      <span className={`text-sm ${pb.cls}`}>{pb.txt}</span>
+                      {meta?.id && <PayInline id={meta.id} />}
+                    </span>
                   </Cell>
                   <div className="col-span-2 md:col-span-1 justify-self-end">
                     <ServerEdit s={editable} />
@@ -311,13 +323,16 @@ export default async function AdminServers() {
                   <Cell label="Характеристики">
                     <SpecsRow s={meta} />
                   </Cell>
-                  <Cell label="Трафик">
+                  <Cell label="Трафик" center>
                     <span className="text-sm text-foreground/80">
                       {limitGb == null ? "безлимит" : `лимит ${limitGb} ГБ`}
                     </span>
                   </Cell>
-                  <Cell label="Оплата">
-                    <span className={`text-sm ${pb.cls}`}>{pb.txt}</span>
+                  <Cell label="Оплата" center>
+                    <span className="inline-flex items-center gap-1.5">
+                      <span className={`text-sm ${pb.cls}`}>{pb.txt}</span>
+                      {meta?.id && <PayInline id={meta.id} />}
+                    </span>
                   </Cell>
                   <div className="col-span-2 md:col-span-1 flex items-center justify-end gap-1">
                     <ServerEdit s={editable} />
