@@ -122,8 +122,11 @@ function Flag({ code }: { code: string | null }) {
   );
 }
 
-// shared column template (desktop)
-const COLS = "md:grid-cols-[minmax(0,1.6fr)_minmax(0,0.9fr)_minmax(0,1.7fr)_minmax(0,1fr)_minmax(0,0.8fr)_auto]";
+// Shared column template (desktop). The last column is a FIXED width
+// (not `auto`) so the action cell reserves identical space in the header
+// and in every row — otherwise the fr columns drift out of alignment.
+const COLS =
+  "md:grid-cols-[minmax(0,1.6fr)_minmax(0,0.9fr)_minmax(0,1.7fr)_minmax(0,1fr)_minmax(0,0.9fr)_5.5rem]";
 
 function HeadRow() {
   return (
@@ -205,7 +208,9 @@ export default async function AdminServers() {
         <div className="rounded-2xl border border-border/60 bg-card/40">
           <HeadRow />
           <div className="divide-y divide-border/60">
-            {nodes.map((n) => {
+            {nodes
+              .filter((n) => byIp.get(n.address)?.is_active !== false)
+              .map((n) => {
               const meta = byIp.get(n.address);
               const healthy = n.status === "connected";
               const pb = paidBadge(meta?.paid_until ?? null);
