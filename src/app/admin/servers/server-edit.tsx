@@ -97,10 +97,10 @@ export function ServerEdit({ s }: { s: EditableServer }) {
         <Field label="Оплачен до" v={f.paid_until} on={(v) => set("paid_until", v)} type="date" />
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <Field label="CPU" v={f.cpu} on={(v) => set("cpu", v)} placeholder="2 vCPU" />
-        <Field label="RAM" v={f.ram} on={(v) => set("ram", v)} placeholder="2 ГБ" />
-        <Field label="Диск" v={f.disk} on={(v) => set("disk", v)} placeholder="20 ГБ" />
-        <Field label="Полоса" v={f.bandwidth} on={(v) => set("bandwidth", v)} placeholder="1 Гбит" />
+        <Field label="CPU" v={f.cpu} on={(v) => set("cpu", v)} placeholder="2" unit="vCPU" />
+        <Field label="RAM" v={f.ram} on={(v) => set("ram", v)} placeholder="2" unit="ГБ" />
+        <Field label="Диск" v={f.disk} on={(v) => set("disk", v)} placeholder="20" unit="ГБ" />
+        <Field label="Полоса" v={f.bandwidth} on={(v) => set("bandwidth", v)} placeholder="1" unit="Гбит" />
       </div>
       <Field label="Заметки" v={f.notes} on={(v) => set("notes", v)} />
       {err && <p className="text-xs text-destructive">{err}</p>}
@@ -128,17 +128,32 @@ function Field({
   on,
   placeholder,
   type,
+  unit,
 }: {
   label: string;
   v: string;
   on: (v: string) => void;
   placeholder?: string;
   type?: string;
+  unit?: string;
 }) {
   return (
     <div className="space-y-1.5">
       <Label className="text-xs">{label}</Label>
-      <Input value={v} onChange={(e) => on(e.target.value)} placeholder={placeholder} type={type} />
+      <div className="relative">
+        <Input
+          value={v}
+          onChange={(e) => on(e.target.value)}
+          placeholder={placeholder}
+          type={type}
+          className={unit ? "pr-12" : undefined}
+        />
+        {unit && (
+          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground pointer-events-none">
+            {unit}
+          </span>
+        )}
+      </div>
     </div>
   );
 }

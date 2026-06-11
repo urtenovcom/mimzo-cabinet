@@ -79,12 +79,22 @@ export default async function AdminUserDetail({
             )}
           </Section>
 
-          {/* Balance + referral */}
-          <Section title="Прочее">
+          {/* Balance */}
+          <Section title="Баланс">
             <dl className="space-y-2.5 text-sm">
-              <Row k="Баланс" v={formatRub(d.profile.balance_rub)} icon={<Wallet className="size-3.5" />} />
               <Row
-                k="Пригласил"
+                k="Текущий баланс"
+                v={<span className="text-primary">{formatRub(d.profile.balance_rub)}</span>}
+                icon={<Wallet className="size-3.5" />}
+              />
+            </dl>
+          </Section>
+
+          {/* Referrals */}
+          <Section title="Рефералы">
+            <dl className="space-y-2.5 text-sm">
+              <Row
+                k="Пригласил его"
                 v={
                   d.referredBy ? (
                     <Link href={`/admin/users/${d.referredBy.id}`} className="text-primary hover:underline">
@@ -96,8 +106,26 @@ export default async function AdminUserDetail({
                 }
                 icon={<Share2 className="size-3.5" />}
               />
-              <Row k="Приведено" v={`${d.referrals.length} чел.`} />
+              <Row k="Привёл людей" v={`${d.referrals.length} чел.`} />
+              <Row
+                k="Заработал с них"
+                v={<span className="text-emerald-400">{formatRub(d.referralEarnedRub)}</span>}
+              />
             </dl>
+            {d.referrals.length > 0 && (
+              <ul className="mt-3 pt-3 border-t border-border/60 divide-y divide-border/60">
+                {d.referrals.map((r) => (
+                  <li key={r.id} className="py-2 flex items-center justify-between gap-2 text-sm">
+                    <Link href={`/admin/users/${r.id}`} className="truncate hover:text-primary">
+                      {r.email ?? r.id.slice(0, 8)}
+                    </Link>
+                    <span className="text-[11px] text-muted-foreground shrink-0">
+                      {formatDateShort(r.createdAt)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
           </Section>
 
           {/* Devices */}

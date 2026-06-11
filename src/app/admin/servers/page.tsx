@@ -25,9 +25,23 @@ function paidBadge(date: string | null) {
   return { txt: d, cls: "text-muted-foreground" };
 }
 
+// Append a unit only when the stored value is a bare number, so a
+// manually-typed "1 ТБ" stays as-is but "20" becomes "20 ГБ".
+function withUnit(val: string | null, unit: string): string | null {
+  if (!val) return null;
+  return /^[\d.,]+$/.test(val.trim()) ? `${val.trim()} ${unit}` : val;
+}
+
 function specs(s?: ServerMeta) {
   if (!s) return "";
-  return [s.cpu, s.ram, s.disk, s.bandwidth].filter(Boolean).join(" · ");
+  return [
+    withUnit(s.cpu, "vCPU"),
+    withUnit(s.ram, "ГБ"),
+    withUnit(s.disk, "ГБ"),
+    withUnit(s.bandwidth, "Гбит"),
+  ]
+    .filter(Boolean)
+    .join(" · ");
 }
 
 export default async function AdminServers() {

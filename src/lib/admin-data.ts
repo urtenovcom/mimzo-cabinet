@@ -224,6 +224,7 @@ export interface AdminUserDetail {
   payments: Payment[];
   referredBy: { id: string; email: string | null } | null;
   referrals: { id: string; email: string | null; createdAt: string }[];
+  referralEarnedRub: number;
   marzbanTrafficBytes: number;
 }
 
@@ -290,6 +291,16 @@ export async function getUserDetail(
     createdAt: r.created_at,
   }));
 
+  // total commission earned from invited users
+  const { data: earnRows } = await db
+    .from("referrals")
+    .select("total_earned_rub")
+    .eq("referrer_id", userId);
+  const referralEarnedRub = (earnRows ?? []).reduce(
+    (s, r) => s + Number(r.total_earned_rub || 0),
+    0,
+  );
+
   return {
     profile,
     subscription,
@@ -297,6 +308,7 @@ export async function getUserDetail(
     payments: (payments ?? []) as Payment[],
     referredBy,
     referrals,
+    referralEarnedRub,
     marzbanTrafficBytes: Number(subscription?.traffic_used_bytes ?? 0),
   };
 }
