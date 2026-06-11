@@ -236,6 +236,7 @@ export async function updateServerMeta(input: {
   ram?: string | null;
   disk?: string | null;
   bandwidth?: string | null;
+  traffic_limit_gb?: number | null;
   notes?: string | null;
 }): Promise<Result> {
   if (!(await requireAdmin())) return { ok: false, error: "forbidden" };

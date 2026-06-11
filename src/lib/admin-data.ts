@@ -444,6 +444,30 @@ export async function getNodes(): Promise<MarzNode[]> {
   return items as MarzNode[];
 }
 
+/** Real per-node traffic (uplink+downlink bytes) keyed by node id. */
+export async function getNodeUsage(): Promise<Map<number, number>> {
+  const base = process.env.MARZBAN_API_BASE ?? "https://panel.mimzo.ru";
+  const token = await marzbanToken();
+  const map = new Map<number, number>();
+  try {
+    const res = await fetch(`${base}/api/nodes/usage`, {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: "no-store",
+    });
+    if (!res.ok) return map;
+    const data = (await res.json()) as {
+      usages: { node_id: number | null; uplink: number; downlink: number }[];
+    };
+    for (const u of data.usages ?? []) {
+      if (u.node_id == null) continue;
+      map.set(u.node_id, Number(u.uplink || 0) + Number(u.downlink || 0));
+    }
+  } catch {
+    /* usage is best-effort */
+  }
+  return map;
+}
+
 export interface MarzHost {
   inboundTag: string;
   remark: string;
@@ -492,6 +516,7 @@ export interface ServerMeta {
   ram: string | null;
   disk: string | null;
   bandwidth: string | null;
+  traffic_limit_gb: number | null;
   notes: string | null;
   is_active: boolean;
 }

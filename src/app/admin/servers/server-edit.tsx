@@ -20,6 +20,7 @@ export interface EditableServer {
   ram: string | null;
   disk: string | null;
   bandwidth: string | null;
+  traffic_limit_gb: number | null;
   notes: string | null;
   // for renaming the Marzban entity
   nodeId?: number;
@@ -43,6 +44,10 @@ export function ServerEdit({ s }: { s: EditableServer }) {
     bandwidth: s.bandwidth ?? "",
     notes: s.notes ?? "",
   });
+  const [unlimited, setUnlimited] = useState(s.traffic_limit_gb == null);
+  const [trafficLimit, setTrafficLimit] = useState(
+    s.traffic_limit_gb != null ? String(s.traffic_limit_gb) : "",
+  );
 
   function set<K extends keyof typeof f>(k: K, v: string) {
     setF((p) => ({ ...p, [k]: v }));
@@ -68,6 +73,7 @@ export function ServerEdit({ s }: { s: EditableServer }) {
           ram: f.ram,
           disk: f.disk,
           bandwidth: f.bandwidth,
+          traffic_limit_gb: unlimited ? null : parseInt(trafficLimit) || null,
           notes: f.notes,
         });
         if (!r.ok) {
@@ -102,6 +108,40 @@ export function ServerEdit({ s }: { s: EditableServer }) {
         <Field label="Диск" v={f.disk} on={(v) => set("disk", v)} placeholder="20" unit="ГБ" />
         <Field label="Полоса" v={f.bandwidth} on={(v) => set("bandwidth", v)} placeholder="1" unit="Гбит" />
       </div>
+
+      {/* Traffic allowance */}
+      <div className="space-y-1.5">
+        <Label className="text-xs">Лимит трафика</Label>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setUnlimited((v) => !v)}
+            className={`shrink-0 rounded-lg border px-3 py-2 text-sm transition-colors ${
+              unlimited
+                ? "border-primary/50 bg-primary/10 text-primary"
+                : "border-border text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Безлимит
+          </button>
+          {!unlimited && (
+            <div className="relative flex-1">
+              <Input
+                value={trafficLimit}
+                onChange={(e) => setTrafficLimit(e.target.value)}
+                placeholder="1000"
+                inputMode="numeric"
+                className="pr-10"
+                autoFocus
+              />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground pointer-events-none">
+                ГБ
+              </span>
+            </div>
+          )}
+        </div>
+      </div>
+
       <Field label="Заметки" v={f.notes} on={(v) => set("notes", v)} />
       {err && <p className="text-xs text-destructive">{err}</p>}
       {!s.id && (

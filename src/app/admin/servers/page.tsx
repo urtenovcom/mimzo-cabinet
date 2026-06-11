@@ -2,14 +2,34 @@ import { Server, Globe } from "lucide-react";
 
 import {
   getNodes,
+  getNodeUsage,
   getHosts,
   getServerRegistry,
   type ServerMeta,
 } from "@/lib/admin-data";
+import { formatBytes } from "@/lib/format";
 import { HostToggle } from "./host-toggle";
 import { ServerEdit, type EditableServer } from "./server-edit";
 
 export const dynamic = "force-dynamic";
+
+function trafficLine(usedBytes: number | null, limitGb: number | null) {
+  const used = usedBytes != null ? formatBytes(usedBytes) : null;
+  if (limitGb == null) {
+    // unlimited
+    return used
+      ? { txt: `${used} / безлимит`, cls: "text-muted-foreground" }
+      : { txt: "безлимит", cls: "text-muted-foreground" };
+  }
+  const limitBytes = limitGb * 1024 ** 3;
+  const pct = usedBytes != null ? (usedBytes / limitBytes) * 100 : 0;
+  const cls =
+    pct >= 90 ? "text-red-400" : pct >= 75 ? "text-amber-400" : "text-muted-foreground";
+  return {
+    txt: `${used ?? "0 Б"} / ${limitGb} ГБ${usedBytes != null ? ` (${Math.round(pct)}%)` : ""}`,
+    cls,
+  };
+}
 
 function paidBadge(date: string | null) {
   if (!date) return { txt: "—", cls: "text-muted-foreground" };
@@ -48,12 +68,14 @@ export default async function AdminServers() {
   let nodes: Awaited<ReturnType<typeof getNodes>> = [];
   let hosts: Awaited<ReturnType<typeof getHosts>> = [];
   let registry: ServerMeta[] = [];
+  let usage = new Map<number, number>();
   let err: string | null = null;
   try {
-    [nodes, hosts, registry] = await Promise.all([
+    [nodes, hosts, registry, usage] = await Promise.all([
       getNodes(),
       getHosts(),
       getServerRegistry().catch(() => []),
+      getNodeUsage().catch(() => new Map<number, number>()),
     ]);
   } catch (e) {
     err = String(e);
@@ -92,6 +114,8 @@ export default async function AdminServers() {
             const meta = byIp.get(n.address);
             const healthy = n.status === "connected";
             const pb = paidBadge(meta?.paid_until ?? null);
+            const usedBytes = usage.get(n.id) ?? null;
+            const tl = trafficLine(usedBytes, meta?.traffic_limit_gb ?? null);
             const editable: EditableServer = {
               id: meta?.id ?? null,
               ip: n.address,
@@ -103,6 +127,7 @@ export default async function AdminServers() {
               ram: meta?.ram ?? null,
               disk: meta?.disk ?? null,
               bandwidth: meta?.bandwidth ?? null,
+              traffic_limit_gb: meta?.traffic_limit_gb ?? null,
               notes: meta?.notes ?? null,
               nodeId: n.id,
             };
@@ -123,6 +148,7 @@ export default async function AdminServers() {
                     {meta?.hosting && <span>{meta.hosting}</span>}
                     {meta?.location && <span>{meta.location}</span>}
                     {specs(meta) && <span>{specs(meta)}</span>}
+                    <span className={tl.cls}>трафик: {tl.txt}</span>
                     <span className={pb.cls}>оплата: {pb.txt}</span>
                   </div>
                 </div>
@@ -148,6 +174,7 @@ export default async function AdminServers() {
           {hosts.map((h) => {
             const meta = byTag.get(h.inboundTag);
             const pb = paidBadge(meta?.paid_until ?? null);
+            const limitGb = meta?.traffic_limit_gb ?? null;
             const editable: EditableServer = {
               id: meta?.id ?? null,
               ip: meta?.ip ?? h.address,
@@ -159,6 +186,7 @@ export default async function AdminServers() {
               ram: meta?.ram ?? null,
               disk: meta?.disk ?? null,
               bandwidth: meta?.bandwidth ?? null,
+              traffic_limit_gb: limitGb,
               notes: meta?.notes ?? null,
               inboundTag: h.inboundTag,
             };
@@ -173,6 +201,7 @@ export default async function AdminServers() {
                     {meta?.hosting && <span>{meta.hosting}</span>}
                     {meta?.location && <span>{meta.location}</span>}
                     {specs(meta) && <span>{specs(meta)}</span>}
+                    <span>трафик: {limitGb == null ? "безлимит" : `лимит ${limitGb} ГБ`}</span>
                     {meta?.paid_until && <span className={pb.cls}>оплата: {pb.txt}</span>}
                   </div>
                 </div>
