@@ -253,6 +253,38 @@ export async function updateServerMeta(input: {
 }
 
 /**
+ * Mark a server paid — pushes paid_until forward by `months`. Counts
+ * from the later of the current due date or today, so paying late
+ * doesn't lose days and paying early stacks correctly.
+ */
+export async function bumpPaidUntil(
+  id: string,
+  months = 1,
+): Promise<Result> {
+  if (!(await requireAdmin())) return { ok: false, error: "forbidden" };
+  const db = createAdminClient();
+  const { data: row } = await db
+    .from("servers")
+    .select("paid_until")
+    .eq("id", id)
+    .maybeSingle();
+  const now = new Date();
+  const from =
+    row?.paid_until && new Date(row.paid_until) > now
+      ? new Date(row.paid_until)
+      : now;
+  from.setMonth(from.getMonth() + months);
+  const next = from.toISOString().slice(0, 10);
+  const { error } = await db
+    .from("servers")
+    .update({ paid_until: next, updated_at: new Date().toISOString() })
+    .eq("id", id);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/admin/servers");
+  return { ok: true };
+}
+
+/**
  * Rename a Marzban node (bridge) — also mirrors the name into our
  * registry row matched by IP.
  */
