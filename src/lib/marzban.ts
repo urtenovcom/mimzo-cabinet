@@ -95,8 +95,9 @@ export interface MarzbanUser {
  */
 export const DEFAULT_INBOUNDS = [
   "VLESS-WS-FI",
-  "VLESS-TCP-Reality-NL",
   "VLESS-WS-DE",
+  "VLESS-WS-NL",
+  "VLESS-WS-NL2",
   "VLESS-WS-AUTO",
 ];
 
