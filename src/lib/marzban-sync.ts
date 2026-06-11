@@ -99,7 +99,7 @@ export async function ensureMarzbanUserForDevice(input: EnsureDeviceUserInput) {
 // Marzban renders inbounds in DB insertion order; we want a fixed
 // product-facing order regardless of when an inbound was added.
 // Priority — Auto, FI, DE, NL, anything else last.
-const ORDER_KEYWORDS = ["Авто", "Финляндия", "Германия", "Нидерланды"];
+const ORDER_KEYWORDS = ["Авто", "Финляндия", "Германия", "Нидерланды", "Польша"];
 
 function orderLinks(links: string[]): string[] {
   const indexOf = (link: string) => {
