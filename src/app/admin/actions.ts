@@ -224,6 +224,116 @@ export async function deleteUserFull(userId: string): Promise<Result> {
   return { ok: true };
 }
 
+// ── Server registry metadata ──────────────────────────────────
+
+export async function updateServerMeta(input: {
+  id: string;
+  name?: string;
+  hosting?: string | null;
+  location?: string | null;
+  paid_until?: string | null;
+  cpu?: string | null;
+  ram?: string | null;
+  disk?: string | null;
+  bandwidth?: string | null;
+  notes?: string | null;
+}): Promise<Result> {
+  if (!(await requireAdmin())) return { ok: false, error: "forbidden" };
+  const db = createAdminClient();
+  const { id, ...rest } = input;
+  const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
+  for (const [k, v] of Object.entries(rest)) {
+    if (v !== undefined) patch[k] = v === "" ? null : v;
+  }
+  const { error } = await db.from("servers").update(patch).eq("id", id);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/admin/servers");
+  return { ok: true };
+}
+
+/**
+ * Rename a Marzban node (bridge) — also mirrors the name into our
+ * registry row matched by IP.
+ */
+export async function renameNode(
+  nodeId: number,
+  ip: string,
+  name: string,
+): Promise<Result> {
+  if (!(await requireAdmin())) return { ok: false, error: "forbidden" };
+  const base = process.env.MARZBAN_API_BASE ?? "https://panel.mimzo.ru";
+  const token = await marzToken();
+  // fetch current node, patch name
+  const cur = await fetch(`${base}/api/node/${nodeId}`, {
+    headers: { Authorization: `Bearer ${token}` },
+    cache: "no-store",
+  });
+  if (cur.ok) {
+    const node = await cur.json();
+    await fetch(`${base}/api/node/${nodeId}`, {
+      method: "PUT",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ ...node, name }),
+    });
+  }
+  // mirror into registry
+  const db = createAdminClient();
+  await db.from("servers").update({ name }).eq("ip", ip);
+  revalidatePath("/admin/servers");
+  return { ok: true };
+}
+
+/** Rename a Marzban host (location remark). */
+export async function renameHost(
+  inboundTag: string,
+  remark: string,
+): Promise<Result> {
+  if (!(await requireAdmin())) return { ok: false, error: "forbidden" };
+  const base = process.env.MARZBAN_API_BASE ?? "https://panel.mimzo.ru";
+  const token = await marzToken();
+  const hr = await fetch(`${base}/api/hosts`, {
+    headers: { Authorization: `Bearer ${token}` },
+    cache: "no-store",
+  });
+  if (!hr.ok) return { ok: false, error: "hosts read" };
+  const hosts = (await hr.json()) as Record<string, Record<string, unknown>[]>;
+  if (hosts[inboundTag]) {
+    hosts[inboundTag] = hosts[inboundTag].map((h) => ({ ...h, remark }));
+  }
+  const wr = await fetch(`${base}/api/hosts`, {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(hosts),
+  });
+  if (!wr.ok) return { ok: false, error: "hosts write" };
+  await fetch(`${base}/api/core/restart`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  revalidatePath("/admin/servers");
+  return { ok: true };
+}
+
+async function marzToken(): Promise<string> {
+  const base = process.env.MARZBAN_API_BASE ?? "https://panel.mimzo.ru";
+  const form = new URLSearchParams();
+  form.set("username", process.env.MARZBAN_ADMIN_USERNAME ?? "admin");
+  form.set("password", process.env.MARZBAN_ADMIN_PASSWORD ?? "");
+  form.set("grant_type", "password");
+  const r = await fetch(`${base}/api/admin/token`, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: form.toString(),
+  });
+  return ((await r.json()) as { access_token: string }).access_token;
+}
+
 // ── Server / host toggle ──────────────────────────────────────
 
 export async function toggleHost(

@@ -465,6 +465,35 @@ export async function getHosts(): Promise<MarzHost[]> {
   return out;
 }
 
+// ── Server registry ───────────────────────────────────────────
+
+export interface ServerMeta {
+  id: string;
+  name: string;
+  ip: string;
+  role: string;
+  hosting: string | null;
+  location: string | null;
+  inbound_tag: string | null;
+  paid_until: string | null;
+  cpu: string | null;
+  ram: string | null;
+  disk: string | null;
+  bandwidth: string | null;
+  notes: string | null;
+  is_active: boolean;
+}
+
+export async function getServerRegistry(): Promise<ServerMeta[]> {
+  const db = createAdminClient();
+  const { data } = await db
+    .from("servers")
+    .select("*")
+    .order("role")
+    .order("name");
+  return (data ?? []) as ServerMeta[];
+}
+
 let _tok: { v: string; exp: number } | null = null;
 async function marzbanToken(): Promise<string> {
   const now = Math.floor(Date.now() / 1000);
