@@ -1,4 +1,4 @@
-import { Activity, Users, Cpu, Gauge, TrendingUp } from "lucide-react";
+import { Activity, Gauge, Cpu, TrendingUp } from "lucide-react";
 
 import { getMonitoring, fmtBps, type ServerLoad } from "@/lib/admin-data";
 
@@ -38,7 +38,7 @@ export default async function AdminMonitoring() {
       {/* top metrics */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <Metric icon={<Activity className="size-4 text-primary" />} label="Онлайн сейчас" value={String(m.current?.online ?? "—")} accent />
-        <Metric icon={<Users className="size-4" />} label="Активных устройств" value={String(m.current?.activeDevices ?? "—")} />
+        <Metric icon={<Gauge className="size-4" />} label="Скорость наружу" value={fmtBps(m.current?.bwOutBps ?? null)} hint={`вход ${fmtBps(m.current?.bwInBps ?? null)}`} />
         <Metric icon={<TrendingUp className="size-4" />} label="Пик сегодня" value={m.peakToday ? String(m.peakToday.online) : "—"} hint={m.peakToday ? fmtTime(m.peakToday.ts) : undefined} />
         <Metric icon={<TrendingUp className="size-4" />} label="Пик за неделю" value={m.peakWeek ? String(m.peakWeek.online) : "—"} hint={m.peakWeek ? fmtTime(m.peakWeek.ts) : undefined} />
       </div>
@@ -47,7 +47,7 @@ export default async function AdminMonitoring() {
       <div className="rounded-2xl border border-border/60 bg-card/40 p-5 sm:p-6">
         <div className="flex items-center justify-between mb-5">
           <h2 className="font-semibold">Онлайн за 24 часа</h2>
-          <span className="text-xs text-muted-foreground">скорость наружу: {fmtBps(m.current?.bwOutBps ?? null)}</span>
+          <span className="text-xs text-muted-foreground">макс. в окне: {maxOnline}</span>
         </div>
         {m.series.length > 1 ? (
           <div className="flex items-end gap-px h-28">
