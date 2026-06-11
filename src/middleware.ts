@@ -49,7 +49,8 @@ export async function middleware(request: NextRequest) {
     url.pathname === "/register" ||
     url.pathname === "/forgot-password" ||
     url.pathname === "/reset-password";
-  const isAppPath = url.pathname.startsWith("/app");
+  const isAppPath =
+    url.pathname.startsWith("/app") || url.pathname.startsWith("/admin");
 
   // Marketing host serving an app path → bounce to app subdomain.
   if (host === AUTH_HOST && isAppPath) {
