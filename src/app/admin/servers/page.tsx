@@ -278,7 +278,7 @@ export default async function AdminServers() {
           Локации (иностранный выход)
         </h2>
         <div className="rounded-2xl border border-border/60 bg-card/40">
-          <HeadRow extra="" />
+          <HeadRow />
           <div className="divide-y divide-border/60">
             {hosts.map((h) => {
               const meta = byTag.get(h.inboundTag);
