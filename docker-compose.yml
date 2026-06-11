@@ -9,6 +9,11 @@ services:
         NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL}
     restart: unless-stopped
     env_file: .env
+    environment:
+      # Make Next.js standalone bind to all interfaces so the in-container
+      # healthcheck (127.0.0.1:3000) can reach it — by default it binds to
+      # the container hostname IP only.
+      HOSTNAME: "0.0.0.0"
     ports:
       - "127.0.0.1:3000:3000"
     healthcheck:
