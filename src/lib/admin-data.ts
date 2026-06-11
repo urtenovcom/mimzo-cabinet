@@ -172,8 +172,18 @@ export async function listUsers(search?: string): Promise<AdminUserRow[]> {
     db.from("devices").select("subscription_id"),
   ]);
 
-  const subByUser = new Map<string, (typeof subs)[number]>();
-  for (const s of subs ?? []) {
+  type SubRow = {
+    user_id: string;
+    is_trial: boolean;
+    status: string;
+    traffic_used_bytes: number;
+    traffic_gb: number;
+    devices_limit: number;
+    expires_at: string;
+    id: string;
+  };
+  const subByUser = new Map<string, SubRow>();
+  for (const s of (subs ?? []) as SubRow[]) {
     const prev = subByUser.get(s.user_id);
     if (!prev || new Date(s.expires_at) > new Date(prev.expires_at)) {
       subByUser.set(s.user_id, s);
