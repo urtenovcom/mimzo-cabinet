@@ -75,12 +75,12 @@ export function PromoAdmin({ promos }: { promos: PromoRow[] }) {
               <Input value={devices} onChange={(e) => setDevices(e.target.value)} placeholder="—" inputMode="numeric" />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs">ГБ (9999=∞)</Label>
-              <Input value={traffic} onChange={(e) => setTraffic(e.target.value)} placeholder="—" inputMode="numeric" />
+              <Label className="text-xs">Трафик, ГБ</Label>
+              <InfField value={traffic} set={setTraffic} placeholder="200" infLabel="Безлимит" />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs">Дней</Label>
-              <Input value={days} onChange={(e) => setDays(e.target.value)} placeholder="—" inputMode="numeric" />
+              <Label className="text-xs">Срок, дней</Label>
+              <InfField value={days} set={setDays} placeholder="30" infLabel="Бессрочно" />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs">Лимит примен.</Label>
@@ -164,6 +164,52 @@ export function PromoAdmin({ promos }: { promos: PromoRow[] }) {
           <p className="px-5 py-10 text-center text-sm text-muted-foreground">Промокодов нет.</p>
         )}
       </div>
+    </div>
+  );
+}
+
+/** Numeric input with an "∞" toggle that sets the value to 9999 (unlimited). */
+function InfField({
+  value,
+  set,
+  placeholder,
+  infLabel,
+}: {
+  value: string;
+  set: (v: string) => void;
+  placeholder: string;
+  infLabel: string;
+}) {
+  const isInf = value === "9999";
+  if (isInf) {
+    return (
+      <button
+        type="button"
+        onClick={() => set("")}
+        className="w-full inline-flex items-center justify-between rounded-lg border border-primary/50 bg-primary/10 text-primary px-3 py-2 text-sm"
+        title="Нажми, чтобы задать число"
+      >
+        <span>{infLabel} ∞</span>
+        <span className="text-xs opacity-70">✕</span>
+      </button>
+    );
+  }
+  return (
+    <div className="flex gap-1">
+      <Input
+        value={value}
+        onChange={(e) => set(e.target.value)}
+        placeholder={placeholder}
+        inputMode="numeric"
+      />
+      <button
+        type="button"
+        onClick={() => set("9999")}
+        title={infLabel}
+        className="shrink-0 rounded-lg border border-border px-2.5 text-muted-foreground hover:text-primary hover:border-primary/50 transition-colors"
+      >
+        ∞
+      </button>
     </div>
   );
 }
