@@ -234,6 +234,8 @@ const VPN_CLIENT_HINTS = [
   "happ",
   "v2rayng",
   "v2rayn",
+  "v2raytun",
+  "v2ray",
   "nekobox",
   "nekoray",
   "shadowrocket",
@@ -249,6 +251,13 @@ const VPN_CLIENT_HINTS = [
   "clash",
   "leaf",
   "outline",
+  "throne",
+  "karing",
+  "loon",
+  "stash",
+  "mahsa",
+  "husi",
+  "ktor-client",
 ];
 
 export function isVpnClientUA(ua: string | null): boolean {
