@@ -68,9 +68,8 @@ const SERVERS: VlessServer[] = [
 // the user's real connection, everything else goes through VPN.
 // ──────────────────────────────────────────────────────────────
 
-const ROUTING_PROFILE = {
-  Name: "Mimzo Routing",
-  GlobalProxy: "true",
+// Shared DNS/geo settings for both routing profiles.
+const ROUTING_BASE = {
   RemoteDNSType: "DoH",
   RemoteDNSDomain: "https://cloudflare-dns.com/dns-query",
   RemoteDNSIP: "1.1.1.1",
@@ -82,61 +81,73 @@ const ROUTING_PROFILE = {
   Geositeurl:
     "https://raw.githubusercontent.com/urtenovcom/mimzo-geo/main/dist/geosite-mimzo.dat",
   DnsHosts: {},
-  DirectSites: [
-    "domain:wildberries.ru",
-    "domain:wbstatic.net",
-    "domain:wb.ru",
-    "domain:ozon.ru",
-    "domain:ozonru.me",
-    "domain:sber.ru",
-    "domain:sberbank.ru",
-    "domain:sberbank.com",
-    "domain:online.sberbank.ru",
-    "domain:gosuslugi.ru",
-    "domain:esia.gosuslugi.ru",
-    "domain:nalog.gov.ru",
-    "domain:nalog.ru",
-    "domain:avito.ru",
-    "domain:yandex.ru",
-    "domain:yastatic.net",
-    "domain:yandex.net",
-    "domain:ya.ru",
-    "domain:kassa.yandex.ru",
-    "domain:mc.yandex.ru",
-    "domain:vk.com",
-    "domain:vk.ru",
-    "domain:userapi.com",
-    "domain:mail.ru",
-    "domain:ok.ru",
-    "domain:mts.ru",
-    "domain:megafon.ru",
-    "domain:beeline.ru",
-    "domain:tele2.ru",
-    "domain:rutube.ru",
-    "domain:dzen.ru",
-    "domain:max.ru",
-    "domain:tinkoff.ru",
-    "domain:vtb.ru",
-    "domain:alfabank.ru",
-    "domain:kinopoisk.ru",
-    "domain:ivi.ru",
-    "domain:okko.tv",
-    "domain:demoalazar.ru",
-    "domain:alazarservers.org",
-    "domain:mimzo.ru",
-  ],
-  DirectIp: [
-    "10.0.0.0/8",
-    "172.16.0.0/12",
-    "192.168.0.0/16",
-    "127.0.0.0/8",
-  ],
-  ProxySites: [],
+  DirectIp: ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "127.0.0.0/8"],
   ProxyIp: [],
   BlockSites: ["geosite:category-ads"],
   BlockIp: [],
   DomainStrategy: "IPIfNonMatch",
   FakeDNS: "false",
+};
+
+// Russian / domestic services that always ride the user's real connection.
+const RU_DIRECT_SITES = [
+  "domain:wildberries.ru", "domain:wbstatic.net", "domain:wb.ru",
+  "domain:ozon.ru", "domain:ozonru.me",
+  "domain:sber.ru", "domain:sberbank.ru", "domain:sberbank.com", "domain:online.sberbank.ru",
+  "domain:gosuslugi.ru", "domain:esia.gosuslugi.ru", "domain:nalog.gov.ru", "domain:nalog.ru",
+  "domain:avito.ru",
+  "domain:yandex.ru", "domain:yastatic.net", "domain:yandex.net", "domain:ya.ru",
+  "domain:kassa.yandex.ru", "domain:mc.yandex.ru",
+  "domain:vk.com", "domain:vk.ru", "domain:userapi.com", "domain:mail.ru", "domain:ok.ru",
+  "domain:mts.ru", "domain:megafon.ru", "domain:beeline.ru", "domain:tele2.ru",
+  "domain:rutube.ru", "domain:dzen.ru", "domain:max.ru",
+  "domain:tinkoff.ru", "domain:vtb.ru", "domain:alfabank.ru",
+  "domain:kinopoisk.ru", "domain:ivi.ru", "domain:okko.tv",
+  "domain:demoalazar.ru", "domain:alazarservers.org", "domain:mimzo.ru", "domain:ujisport.ru",
+  "geosite:category-ru",
+];
+
+// Services blocked / unavailable in RU — these go through the tunnel in the
+// "Быстрый" profile (everything else stays direct).
+const BLOCKED_PROXY_SITES = [
+  // social / messengers
+  "domain:instagram.com", "domain:cdninstagram.com",
+  "domain:facebook.com", "domain:fbcdn.net", "domain:threads.net",
+  "domain:twitter.com", "domain:x.com", "domain:twimg.com", "domain:t.co",
+  "domain:linkedin.com", "domain:licdn.com",
+  "domain:discord.com", "domain:discord.gg", "domain:discordapp.com",
+  "domain:discordapp.net", "domain:discord.media",
+  "domain:signal.org",
+  // AI
+  "domain:openai.com", "domain:chatgpt.com", "domain:oaistatic.com", "domain:oaiusercontent.com",
+  "domain:anthropic.com", "domain:claude.ai", "domain:perplexity.ai", "domain:midjourney.com",
+  // media
+  "domain:meduza.io", "domain:bbc.com", "domain:bbci.co.uk", "domain:dw.com",
+  "domain:svoboda.org", "domain:rferl.org", "domain:theins.ru", "domain:tvrain.tv",
+  // YouTube (user decision: always via VPN)
+  "domain:youtube.com", "domain:youtu.be", "domain:googlevideo.com",
+  "domain:ytimg.com", "domain:ggpht.com", "domain:youtubei.googleapis.com",
+  // music / content
+  "domain:soundcloud.com", "domain:sndcdn.com", "domain:patreon.com",
+  "domain:spotify.com", "domain:scdn.co",
+];
+
+// 🛡 Полный — всё иностранное через VPN, рунет напрямую (по умолчанию).
+const ROUTING_FULL = {
+  ...ROUTING_BASE,
+  Name: "🛡 Mimzo · Полный",
+  GlobalProxy: "true",
+  DirectSites: RU_DIRECT_SITES,
+  ProxySites: [],
+};
+
+// 🚀 Быстрый — только заблокированное через VPN, всё остальное напрямую.
+const ROUTING_FAST = {
+  ...ROUTING_BASE,
+  Name: "🚀 Mimzo · Быстрый",
+  GlobalProxy: "false",
+  DirectSites: [],
+  ProxySites: BLOCKED_PROXY_SITES,
 };
 
 // ── helpers ───────────────────────────────────────────────────
@@ -172,9 +183,11 @@ export interface SubBuildInput {
  * Build the active subscription content (base64-encoded).
  */
 export function buildActiveSubscription(input: SubBuildInput): string {
-  const routingBlob = b64UrlNoPad(JSON.stringify(ROUTING_PROFILE));
   const lines: string[] = [];
-  lines.push(`happ://routing/onadd/${routingBlob}`);
+  // Ship both routing profiles; "Полный" is pushed last so Happ makes it
+  // the active default. User can switch to "Быстрый" in the client.
+  lines.push(`happ://routing/onadd/${b64UrlNoPad(JSON.stringify(ROUTING_FAST))}`);
+  lines.push(`happ://routing/onadd/${b64UrlNoPad(JSON.stringify(ROUTING_FULL))}`);
   if (input.marzbanLinks && input.marzbanLinks.length > 0) {
     for (const link of input.marzbanLinks) lines.push(link);
   } else {
