@@ -83,6 +83,7 @@ const ROUTING_PROFILE = {
     "https://raw.githubusercontent.com/urtenovcom/mimzo-geo/main/dist/geosite-mimzo.dat",
   DnsHosts: {},
   DirectSites: [
+    "geosite:category-ru",
     "domain:wildberries.ru",
     "domain:wbstatic.net",
     "domain:wb.ru",
@@ -152,6 +153,7 @@ const ROUTING_PROFILE = {
     "domain:mimzo.ru",
   ],
   DirectIp: [
+    "geoip:ru",
     "10.0.0.0/8",
     "172.16.0.0/12",
     "192.168.0.0/16",
