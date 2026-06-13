@@ -91,6 +91,9 @@ const COUNTRY: { kw: string; code: string }[] = [
   { kw: "гданьск", code: "pl" },
   { kw: "болгар", code: "bg" },
   { kw: "софия", code: "bg" },
+  { kw: "швейцар", code: "ch" },
+  { kw: "женев", code: "ch" },
+  { kw: "цюрих", code: "ch" },
   { kw: "росси", code: "ru" },
   { kw: "москв", code: "ru" },
 ];
