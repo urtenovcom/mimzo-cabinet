@@ -64,14 +64,16 @@ export default async function AdminOverview() {
               {s.signups7d.reduce((a, b) => a + b.count, 0)} новых
             </span>
           </div>
-          <div className="flex items-end gap-2 h-32">
+          <div className="flex items-end gap-2 h-36">
             {s.signups7d.map((d) => (
-              <div key={d.date} className="flex-1 flex flex-col items-center gap-2">
-                <div className="w-full flex items-end justify-center h-full">
+              <div key={d.date} className="flex-1 flex flex-col items-center gap-1.5">
+                <span className="text-xs font-medium tabular-nums text-foreground/90">
+                  {d.count}
+                </span>
+                <div className="w-full flex items-end justify-center flex-1">
                   <div
                     className="w-full max-w-[40px] rounded-t-md bg-primary/70 transition-all"
                     style={{ height: `${(d.count / maxSignup) * 100}%`, minHeight: d.count ? "6px" : "2px" }}
-                    title={`${d.count}`}
                   />
                 </div>
                 <span className="text-[10px] text-muted-foreground tabular-nums">

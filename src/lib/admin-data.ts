@@ -99,15 +99,23 @@ export async function getOverview(): Promise<OverviewStats> {
     if (slot) slot.count++;
   }
 
-  // servers from Marzban
+  // bridges from Marzban — hide nodes deactivated in the registry
   let servers: OverviewStats["servers"] = [];
   try {
-    const nodes = await getNodes();
-    servers = nodes.map((n) => ({
-      name: n.name,
-      status: n.status,
-      healthy: n.status === "connected",
-    }));
+    const [nodes, reg] = await Promise.all([
+      getNodes(),
+      getServerRegistry().catch(() => [] as ServerMeta[]),
+    ]);
+    const inactiveByIp = new Set(
+      reg.filter((r) => r.is_active === false).map((r) => r.ip),
+    );
+    servers = nodes
+      .filter((n) => !inactiveByIp.has(n.address))
+      .map((n) => ({
+        name: n.name,
+        status: n.status,
+        healthy: n.status === "connected",
+      }));
   } catch {
     servers = [];
   }

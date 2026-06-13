@@ -42,17 +42,40 @@ export default async function AdminFinance() {
 
       {/* Revenue chart */}
       <div className="rounded-2xl border border-border/60 bg-card/40 p-5 sm:p-6">
-        <h2 className="font-semibold mb-5">Выручка за 30 дней</h2>
-        <div className="flex items-end gap-1 h-32">
-          {f.revenueByDay.map((d) => (
-            <div
-              key={d.date}
-              className="flex-1 bg-primary/60 rounded-t-sm transition-all hover:bg-primary"
-              style={{ height: `${(d.rub / maxRub) * 100}%`, minHeight: "2px" }}
-              title={`${d.date}: ${formatRub(d.rub)}`}
-            />
-          ))}
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="font-semibold">Выручка за 30 дней</h2>
+          <span className="text-xs text-muted-foreground tabular-nums">
+            макс. в день: {formatRub(maxRub)}
+          </span>
         </div>
+        {f.revenueByDay.some((d) => d.rub > 0) ? (
+          <div>
+            <div className="flex gap-2">
+              <div className="flex flex-col justify-between h-32 text-[10px] text-muted-foreground tabular-nums text-right w-12 shrink-0">
+                <span>{formatRub(maxRub)}</span>
+                <span>0</span>
+              </div>
+              <div className="flex items-end gap-1 h-32 flex-1">
+                {f.revenueByDay.map((d) => (
+                  <div
+                    key={d.date}
+                    className="flex-1 bg-primary/60 rounded-t-sm transition-all hover:bg-primary"
+                    style={{ height: `${(d.rub / maxRub) * 100}%`, minHeight: d.rub ? "4px" : "2px" }}
+                    title={`${d.date}: ${formatRub(d.rub)}`}
+                  />
+                ))}
+              </div>
+            </div>
+            <div className="flex justify-between text-[10px] text-muted-foreground tabular-nums mt-1.5 pl-14">
+              <span>{f.revenueByDay[0]?.date.slice(8)}.{f.revenueByDay[0]?.date.slice(5, 7)}</span>
+              <span>сегодня</span>
+            </div>
+          </div>
+        ) : (
+          <div className="h-28 flex items-center justify-center text-sm text-muted-foreground">
+            Пока нет платежей — выручки за период нет
+          </div>
+        )}
       </div>
 
       {/* Payments */}

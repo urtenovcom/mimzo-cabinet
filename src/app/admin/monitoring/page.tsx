@@ -50,15 +50,35 @@ export default async function AdminMonitoring() {
           <span className="text-xs text-muted-foreground">макс. в окне: {maxOnline}</span>
         </div>
         {m.series.length > 1 ? (
-          <div className="flex items-end gap-px h-28">
-            {m.series.map((s, i) => (
-              <div
-                key={i}
-                className="flex-1 bg-primary/60 rounded-t-sm transition-all hover:bg-primary"
-                style={{ height: `${(s.online / maxOnline) * 100}%`, minHeight: "2px" }}
-                title={`${fmtTime(s.ts)}: ${s.online} онлайн`}
-              />
-            ))}
+          <div>
+            <div className="flex gap-2">
+              {/* Y axis */}
+              <div className="flex flex-col justify-between h-28 text-[10px] text-muted-foreground tabular-nums text-right w-6 shrink-0">
+                <span>{maxOnline}</span>
+                <span>{Math.round(maxOnline / 2)}</span>
+                <span>0</span>
+              </div>
+              {/* bars with mid gridline */}
+              <div className="relative flex-1">
+                <div className="absolute left-0 right-0 top-1/2 border-t border-border/40" />
+                <div className="relative flex items-end gap-px h-28">
+                  {m.series.map((s, i) => (
+                    <div
+                      key={i}
+                      className="flex-1 bg-primary/60 rounded-t-sm transition-all hover:bg-primary"
+                      style={{ height: `${(s.online / maxOnline) * 100}%`, minHeight: "2px" }}
+                      title={`${fmtTime(s.ts)}: ${s.online} онлайн`}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+            {/* X axis time labels */}
+            <div className="flex justify-between text-[10px] text-muted-foreground tabular-nums mt-1.5 pl-8">
+              <span>{fmtTime(m.series[0].ts)}</span>
+              <span>{fmtTime(m.series[Math.floor(m.series.length / 2)].ts)}</span>
+              <span>{fmtTime(m.series[m.series.length - 1].ts)}</span>
+            </div>
           </div>
         ) : (
           <p className="text-sm text-muted-foreground py-6 text-center">
