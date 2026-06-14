@@ -90,7 +90,7 @@ export async function GET(request: NextRequest, { params }: Params) {
 
   if (!isVpnClientUA(ua)) {
     return warning(
-      "Открой подписку в VPN-клиенте (Happ, v2rayNG и т.п.), а не в браузере",
+      "Открой подписку в приложении (Happ и т.п.), а не в браузере",
       meta,
     );
   }
